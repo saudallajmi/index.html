@@ -128,9 +128,12 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         foreach ($body["users"] as $u) {
             if (!isset($u["username"]) || trim((string)$u["username"]) === "") continue;
             if ($u["username"] === OWNER_USER) continue;
+            $pw = (string)(isset($u["password"]) ? $u["password"] : "");
+            // إن كانت القيمة هاش bcrypt جاهز (مستخدم قائم بدون تغيير) نُبقيها، وإلا نُشفّرها
+            $isHash = (bool)preg_match('/^\$2[aby]\$\d{2}\$/', $pw);
             $clean[] = [
                 "username" => trim((string)$u["username"]),
-                "password" => password_hash((string)(isset($u["password"]) ? $u["password"] : ""), PASSWORD_BCRYPT),
+                "password" => $isHash ? $pw : password_hash($pw, PASSWORD_BCRYPT),
             ];
         }
         $state["users"] = $clean;

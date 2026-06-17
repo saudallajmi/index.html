@@ -335,7 +335,8 @@ body{
       <div class="meta" id="topMeta">جارٍ التحميل…</div>
     </div>
     <div class="topbar-actions">
-      <button class="admintog" id="adminToggle" type="button" style="display:none"></button>
+      <button class="admintog" id="adminToggle" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>تسجيل الدخول</button>
+      <button class="admintog" id="logoutBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>خروج</button>
     </div>
   </div>
 
@@ -898,17 +899,31 @@ function renderOperGoals(){
 /* ============================================================
    ADMIN MODE + AUTH
    ============================================================ */
+const ICON_LOCK=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>`;
+const ICON_EYE=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
+function setAdminBtn(state){
+  const b=document.getElementById("adminToggle");
+  if(state==="login"){ b.innerHTML=ICON_LOCK+"تسجيل الدخول"; b.classList.remove("on"); }
+  else if(state==="admin"){ b.innerHTML=ICON_LOCK+"وضع الإدارة"; b.classList.add("on"); }
+  else { b.innerHTML=ICON_EYE+"وضع القراءة"; b.classList.remove("on"); }
+}
 document.getElementById("adminToggle").addEventListener("click",()=>{
   if(!SESSION){ showAuth(); return; }
   ADMIN_MODE=!ADMIN_MODE;
-  document.getElementById("adminToggle").textContent=ADMIN_MODE?"🔓 وضع القراءة":"🔑 وضع الإدارة";
-  document.getElementById("adminToggle").classList.toggle("on",ADMIN_MODE);
+  setAdminBtn(ADMIN_MODE?"admin":"read");
   document.getElementById("adminBanner").style.display=ADMIN_MODE?"flex":"none";
   if(SESSION.role==="owner") document.getElementById("manageUsersBtn").style.display=ADMIN_MODE?"":"none";
   renderAll();
 });
+document.getElementById("logoutBtn").addEventListener("click",()=>{
+  SESSION=null; ADMIN_MODE=false;
+  document.getElementById("logoutBtn").style.display="none";
+  document.getElementById("adminBanner").style.display="none";
+  setAdminBtn("login");
+  renderAll();
+  toast("تم تسجيل الخروج");
+});
 document.getElementById("saveAllBtn").addEventListener("click",saveAll);
-document.getElementById("manageUsersBtn").addEventListener("click",showUsersModal);
 document.getElementById("addGoalBtn").addEventListener("click",()=>showAddGoal());
 document.getElementById("addPillarBtn").addEventListener("click",showAddPillar);
 document.getElementById("addOrientBtn").addEventListener("click",showAddOrient);
@@ -928,16 +943,18 @@ document.getElementById("lgBtn").addEventListener("click",async()=>{
   const res=await apiPost({action:"login",username:u,password:p});
   document.getElementById("lgBtn").textContent="دخول";
   if(res.err){ document.getElementById("lgErr").textContent=res.err; return; }
-  SESSION={role:res.role,username:u,password:p};
+  SESSION={role:res.role,username:u,password:p,_users:res.users||[]};
   document.getElementById("authOv").classList.remove("show");
-  document.getElementById("adminToggle").style.display="";
-  document.getElementById("adminToggle").textContent="🔑 وضع الإدارة";
+  document.getElementById("lgUser").value="";document.getElementById("lgPass").value="";
+  document.getElementById("lgErr").textContent="";
   ADMIN_MODE=true;
-  document.getElementById("adminToggle").classList.add("on");
+  setAdminBtn("admin");
+  document.getElementById("logoutBtn").style.display="";
   document.getElementById("adminBanner").style.display="flex";
   document.getElementById("abWho").innerHTML=`<b>وضع الإدارة مُفعّل</b> — ${esc(res.username)} (${res.role==="owner"?"المالك":"مستخدم"})`;
   if(res.role==="owner") document.getElementById("manageUsersBtn").style.display="";
   renderAll();
+  toast("مرحباً "+esc(res.username)+" ✓");
 });
 document.getElementById("lgPass").addEventListener("keydown",e=>{ if(e.key==="Enter") document.getElementById("lgBtn").click(); });
 
@@ -1357,20 +1374,23 @@ function renderUsersList(){
   el.innerHTML=_usersTemp.map((u,i)=>`
     <div class="urow">
       <input class="uin" placeholder="اسم المستخدم" value="${esc(u.username)}" oninput="_usersTemp[${i}].username=this.value">
-      <input class="uin" type="password" placeholder="كلمة المرور الجديدة" oninput="_usersTemp[${i}].newpass=this.value">
+      <input class="uin" type="password" placeholder="${u.hash?"اتركها فارغة للإبقاء على كلمة المرور":"كلمة المرور"}" oninput="_usersTemp[${i}].newpass=this.value">
       <button class="ebtn sm danger" onclick="_usersTemp.splice(${i},1);renderUsersList()" type="button">حذف</button>
     </div>`).join("")||`<div style="color:#aab5c4;font-size:13px;padding:8px">لا يوجد مستخدمون</div>`;
 }
-function addUserRow(){ _usersTemp.push({username:"",newpass:""}); renderUsersList(); }
+function addUserRow(){ _usersTemp.push({username:"",newpass:"",hash:""}); renderUsersList(); }
 async function saveUsers(){
   const users=_usersTemp.filter(u=>u.username.trim());
-  const res=await apiPost({action:"saveUsers",username:SESSION.username,password:SESSION.password,
-    users:users.map(u=>({username:u.username,password:u.newpass||u.username}))});
+  // كلمة مرور جديدة إن أُدخلت، وإلا نُبقي الهاش الحالي (للمستخدمين القائمين)
+  const payload=users.map(u=>({username:u.username.trim(),password:u.newpass?u.newpass:(u.hash||u.username.trim())}));
+  const res=await apiPost({action:"saveUsers",username:SESSION.username,password:SESSION.password,users:payload});
   if(res.err){toast(res.err,"err");return;}
+  if(SESSION) SESSION._users=res.users||[];
   closeModal();toast("تم حفظ المستخدمين ✓");
 }
 document.getElementById("manageUsersBtn").addEventListener("click",()=>{
-  _usersTemp=[];showUsersModal();
+  _usersTemp=(SESSION&&SESSION._users?SESSION._users:[]).map(u=>({username:u.username,newpass:"",hash:u.password||""}));
+  showUsersModal();
 });
 
 /* ============================================================

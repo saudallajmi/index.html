@@ -1,0 +1,20 @@
+{
+    "identity": {
+        "vision": "",
+        "mission": "",
+        "values": []
+    },
+    "pillars": [],
+    "orientations": [],
+    "goals": [],
+    "portfolios": [],
+    "exec_plans": [],
+    "oper_goals": [],
+    "users": [
+        {
+            "username": "Saud",
+            "password": "$2y$12$AhaP2YFFf48485HIr88AMuSO3tAJIMT.qxM237tHaledFbeHRW4fa"
+        }
+    ],
+    "updated_at": null
+}

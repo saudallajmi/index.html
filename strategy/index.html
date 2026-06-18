@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="strategy.css?v=20260618">
+<link rel="stylesheet" href="strategy.css?v=20260618b">
 </head>
 <body>
 <div class="wrap">
@@ -212,7 +212,15 @@
           </button>
         </div>
       </div>
+      <div class="ini-view-seg" id="iniViewSeg">
+        <button class="ivs on" data-view="cards" type="button">بطاقات</button>
+        <button class="ivs" data-view="gantt" type="button">الخط الزمني</button>
+        <button class="ivs" data-view="radar" type="button">رادار</button>
+        <button class="ebtn sm primary" id="presentBtn" type="button" style="margin-right:auto">▶ وضع العرض</button>
+      </div>
       <div id="initiativesList"></div>
+      <div id="initiativesGantt" style="display:none"></div>
+      <div id="initiativesRadar" style="display:none"></div>
     </div>
 
     <div class="sec" style="animation-delay:.1s">
@@ -290,9 +298,23 @@
   </div>
 </div>
 
+<!-- Presentation / Meeting Mode -->
+<div class="present-ov" id="presentOv" hidden>
+  <div class="present-bar">
+    <div class="present-title">عرض المبادرات — اللجنة التوجيهية <span id="presentDate"></span></div>
+    <div class="present-nav">
+      <button id="presentPrev" type="button">‹</button>
+      <span id="presentCounter"></span>
+      <button id="presentNext" type="button">›</button>
+      <button id="presentClose" type="button">✕</button>
+    </div>
+  </div>
+  <div class="present-stage" id="presentStage"></div>
+</div>
+
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script src="strategy.js?v=20260618"></script>
+<script src="strategy.js?v=20260618b"></script>
 </body>
 </html>

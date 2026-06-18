@@ -534,3 +534,94 @@ body{
 .bsc-kpi-dots{display:flex;gap:4px;flex-wrap:wrap}
 .bsc-kpi-dot{width:9px;height:9px;border-radius:50%;opacity:.85}
 
+
+/* ============================================================
+   WEIGHTED MILESTONE PLANS
+   ============================================================ */
+.ms-plans{margin:6px 0 4px;padding:6px 8px;border-right:2px solid var(--line);background:#f7fafc;border-radius:8px}
+.ms-plan-row{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+.ms-plan-row:last-child{margin-bottom:0}
+.ms-plan-name{flex:1;font-size:11.5px;color:var(--navy);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ms-plan-w{font-size:11px;color:var(--muted);font-weight:700;min-width:26px;text-align:center}
+.ms-plan-bar{position:relative;width:90px;height:6px;background:#e8eef5;border-radius:99px;overflow:hidden;flex:none}
+.ms-plan-bar span{position:absolute;right:0;top:0;height:100%;border-radius:99px;transition:width .6s ease}
+.ms-plan-pct{font-size:11px;font-weight:700;min-width:34px;text-align:left}
+
+/* ============================================================
+   INITIATIVES VIEW SWITCHER
+   ============================================================ */
+.ini-view-seg{display:flex;align-items:center;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+.ivs{appearance:none;border:1px solid var(--line);background:var(--card);cursor:pointer;font-family:inherit;
+  font-size:12.5px;font-weight:700;color:var(--muted);padding:7px 16px;border-radius:99px;transition:.2s}
+.ivs:hover{color:var(--navy);border-color:var(--teal)}
+.ivs.on{background:linear-gradient(135deg,var(--navy),#1a5a8a);color:#fff;border-color:transparent}
+
+/* ===== Initiatives Gantt ===== */
+.ini-gantt-wrap{overflow-x:auto;padding-bottom:8px}
+.ini-gantt-inner{min-width:720px}
+.ini-gantt-axis{position:relative;height:28px;margin-right:160px;border-bottom:1px solid var(--line);margin-bottom:8px}
+.ini-gantt-axis-track{position:relative;height:100%}
+.ini-gantt-tick{position:absolute;top:0;height:100%;border-right:1px dashed var(--line)}
+.ini-gantt-tick span{position:absolute;top:2px;right:4px;font-size:10.5px;color:var(--muted);white-space:nowrap}
+.ini-gantt-rows{display:flex;flex-direction:column;gap:7px}
+.ini-gantt-row{display:grid;grid-template-columns:160px 1fr;align-items:center;gap:8px}
+.ini-gantt-label{font-size:12px;color:var(--navy);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:right}
+.ini-gantt-track{position:relative;height:22px;background:#eef2f7;border-radius:8px}
+.ini-gantt-bar{position:absolute;top:0;height:100%;border-radius:8px;overflow:hidden;cursor:pointer;min-width:14px;display:flex;align-items:center;transition:.2s}
+.ini-gantt-bar:hover{filter:brightness(.97);box-shadow:0 2px 8px rgba(13,59,107,.15)}
+.ini-gantt-fill{position:absolute;right:0;top:0;height:100%;border-radius:8px;opacity:.85}
+.ini-gantt-barpct{position:relative;z-index:1;font-size:11px;font-weight:700;color:var(--navy);margin:0 6px}
+.ini-gantt-today{position:absolute;top:0;bottom:0;width:0;border-right:2px solid var(--orange);z-index:2}
+.ini-gantt-today span{position:absolute;top:-2px;right:3px;font-size:9.5px;font-weight:700;color:var(--orange);white-space:nowrap}
+
+/* ===== Initiatives Radar (sonar) ===== */
+.ini-radarbox{position:relative;display:flex;justify-content:center;padding:18px;background:#06151f;border-radius:18px}
+.ini-radar-svg{display:block}
+.ini-radar-ring{fill:none;stroke:rgba(46,204,143,.22);stroke-width:1}
+.ini-radar-ringlbl{fill:rgba(160,210,190,.55);font-size:10px;text-anchor:middle;font-family:'IBM Plex Sans Arabic',sans-serif}
+.ini-radar-spoke{stroke:rgba(46,204,143,.16);stroke-width:1}
+.ini-radar-centerlbl{fill:rgba(180,225,205,.8);font-size:11px;font-weight:700;font-family:'IBM Plex Sans Arabic',sans-serif}
+.ini-radar-blip{cursor:pointer}
+.ini-radar-blip:hover circle{filter:brightness(1.15);stroke-width:2.5}
+.ini-radar-blip:focus{outline:none}
+.ini-radar-tip{position:absolute;z-index:5;pointer-events:none;background:rgba(10,32,46,.96);color:#eaf4ef;
+  border:1px solid rgba(46,204,143,.4);border-radius:8px;padding:6px 10px;font-size:12px;line-height:1.6;max-width:220px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+
+/* ============================================================
+   PRESENTATION / MEETING MODE
+   ============================================================ */
+body.present-open{overflow:hidden}
+.present-ov{position:fixed;inset:0;z-index:9000;background:linear-gradient(160deg,#0a2333,#06151f);display:flex;flex-direction:column}
+.present-ov[hidden]{display:none}
+.present-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 22px;border-bottom:1px solid rgba(46,204,143,.2);color:#eaf4ef;flex:none}
+.present-title{font-size:15px;font-weight:700}
+.present-title span{color:#8fd3ba;font-weight:600;margin-right:6px}
+.present-nav{display:flex;align-items:center;gap:10px}
+.present-nav span{font-size:13px;color:#bcd}
+.present-nav button{appearance:none;border:1px solid rgba(46,204,143,.35);background:rgba(255,255,255,.06);color:#eaf4ef;
+  width:38px;height:38px;border-radius:10px;cursor:pointer;font-size:18px;font-family:inherit;transition:.2s}
+.present-nav button:hover{background:rgba(46,204,143,.2);border-color:#2ECC8F}
+.present-stage{flex:1;display:flex;overflow-x:auto;scroll-snap-type:x mandatory;align-items:center;gap:30px;padding:30px 8vw;scroll-behavior:smooth}
+.present-slide{flex:0 0 76vw;max-width:1000px;scroll-snap-align:center}
+.present-slide .ps-card,.present-overview{background:#fff;border-radius:22px;padding:30px 34px;box-shadow:0 18px 50px rgba(0,0,0,.4);min-height:62vh}
+.ps-h{font-size:20px;font-weight:700;color:var(--navy);margin-bottom:22px}
+.ps-ov-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px;margin-bottom:24px}
+.ps-ov-stat{background:#f7fafc;border:1px solid var(--line);border-radius:14px;padding:16px;text-align:center}
+.ps-ov-num{font-size:34px;font-weight:700;color:var(--navy);line-height:1}
+.ps-ov-lbl{font-size:12.5px;color:var(--muted);margin-top:6px}
+.ps-card-head{display:flex;align-items:center;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:16px;margin-bottom:18px}
+.ps-num{font-size:13px;color:var(--teal);font-weight:700}
+.ps-name{flex:1;font-size:22px;font-weight:700;color:var(--navy);line-height:1.3}
+.ps-card-body{display:flex;gap:30px;flex-wrap:wrap;align-items:center;margin-bottom:18px}
+.ps-gauge{flex:none}
+.ps-meta{flex:1;min-width:240px;display:flex;flex-direction:column;gap:9px}
+.ps-meta div{font-size:14.5px;color:var(--ink);display:flex;gap:10px}
+.ps-meta-l{color:var(--muted);min-width:120px;font-size:13px}
+.ps-meta b{color:var(--navy);font-weight:700}
+.ps-ms-list{border-top:1px solid var(--line);padding-top:16px}
+.ps-ms-h{font-size:14px;font-weight:700;color:var(--navy);margin-bottom:10px}
+.ps-ms-row{display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.ps-ms-name{flex:1;font-size:14px;color:var(--ink);font-weight:600}
+.ps-ms-bar{position:relative;width:160px;height:8px;background:#e8eef5;border-radius:99px;overflow:hidden;flex:none}
+.ps-ms-bar span{position:absolute;right:0;top:0;height:100%;border-radius:99px}
+.ps-ms-pct{font-size:13px;font-weight:700;min-width:42px;text-align:left}

@@ -93,6 +93,24 @@ function _th(){ return STATE.settings||{th_complete:100,th_ontrack:85,th_delayed
 function kpiColor(pct){ const t=_th(); if(pct>=t.th_complete) return "var(--kpi-g)"; if(pct>=t.th_ontrack) return "var(--kpi-y)"; return "var(--kpi-r)"; }
 function kpiHex(pct){ const t=_th(); if(pct>=t.th_complete) return "#2ECC8F"; if(pct>=t.th_ontrack) return "#C9A24B"; return "#e0824b"; }
 
+/* ===== Weighted milestone plans (rollups) ===== */
+function _clampPct(v){ v=+v; if(isNaN(v)) return 0; return Math.max(0,Math.min(100,Math.round(v))); }
+function planRollup(m){
+  const pl=Array.isArray(m.plans)?m.plans:[];
+  if(!pl.length) return null;
+  let w=0,s=0;
+  pl.forEach(p=>{ const ww=Math.max(1,Math.round(p.weight||1)); w+=ww; s+=ww*_clampPct(p.progress); });
+  return w?Math.round(s/w):0;
+}
+function msEff(m){ const r=planRollup(m); return (r==null)?(+m.pct||0):r; }
+function iniEff(ini){
+  const ms=ini.milestones||[];
+  if(!ms.length) return +ini.pct||0;
+  let w=0,s=0;
+  ms.forEach(m=>{ const ww=Math.max(1,Math.round(m.weight||1)); w+=ww; s+=ww*msEff(m); });
+  return w?Math.round(s/w):0;
+}
+
 /* ===== SVG Gauge ===== */
 function svgGauge(pct, w=160, h=90){
   pct = Math.min(100, Math.max(0, Math.round(+pct||0)));
@@ -151,7 +169,7 @@ function _ganttHTML(milestones){
     const eT=new Date(m.end).getTime();
     const left=((sT-minT)/range*100).toFixed(1);
     const width=Math.max(2,((eT-sT)/range*100).toFixed(1));
-    const pct=+m.pct||0;
+    const pct=msEff(m);
     const col=kpiHex(pct);
     return `<div class="gantt-row">
       <div class="gantt-label" title="${esc(m.name)}">${esc(m.name)}</div>
@@ -263,7 +281,7 @@ function renderDashboard(){
   const ini=STATE.initiatives;
   const iniBrkdn={done:0,ontrack:0,delayed:0,verylate:0,none:0};
   ini.forEach(i=>{
-    const p=+i.pct||0;
+    const p=iniEff(i);
     if(p>=t.th_complete) iniBrkdn.done++;
     else if(p>=t.th_ontrack) iniBrkdn.ontrack++;
     else if(p>=t.th_delayed) iniBrkdn.delayed++;
@@ -284,7 +302,7 @@ function renderDashboard(){
   const kpiTotal=allKpis.length||1;
   const today=new Date();
   const upcoming=STATE.initiatives.flatMap(i=>(i.milestones||[]).map(m=>({...m,iniName:i.name,iniId:i.id})))
-    .filter(m=>m.end&&new Date(m.end)>=today&&(+m.pct||0)<100)
+    .filter(m=>m.end&&new Date(m.end)>=today&&msEff(m)<100)
     .sort((a,b)=>new Date(a.end)-new Date(b.end)).slice(0,7);
   const recent=(STATE.change_log||[]).slice(0,8);
   const _stCard=(label,n,col)=>`<div class="db-stat-card" style="border-right-color:${col}"><div class="db-stat-val" style="color:${col}">${toAr(n)}</div><div class="db-stat-lbl">${label}</div></div>`;
@@ -346,7 +364,7 @@ function updateKPIs(){
   gb.style.background=kpiHex(goalPct);
 
   document.getElementById("kInitCount").textContent=toAr(STATE.initiatives.length);
-  const initPct=STATE.initiatives.length?Math.round(STATE.initiatives.reduce((s,i)=>s+(+i.pct||0),0)/STATE.initiatives.length):0;
+  const initPct=STATE.initiatives.length?Math.round(STATE.initiatives.reduce((s,i)=>s+iniEff(i),0)/STATE.initiatives.length):0;
   document.getElementById("kInitPct").textContent=toAr(initPct);
   const ib=document.getElementById("kInitBar");
   ib.style.width=initPct+"%";
@@ -667,7 +685,7 @@ function renderInitiatives(){
     return;
   }
   el.innerHTML=`<div class="init-grid">${STATE.initiatives.map(ini=>{
-    const pct=+ini.pct||0;
+    const pct=iniEff(ini);
     const st=calcStatus(pct,ini.end);
     const col=kpiHex(pct);
     const linkedPfs=STATE.portfolios.filter(pf=>(pf.initiative_ids||[]).includes(ini.id));
@@ -739,6 +757,256 @@ function _fillIniPanel(ini){
 }
 
 /* ============================================================
+   INITIATIVES VIEW SWITCHER (Cards / Gantt / Radar)
+   ============================================================ */
+const AR_MONTHS=["يناير","فبراير","مارس","أبريل","مايو","يونيو","يوليو","أغسطس","سبتمبر","أكتوبر","نوفمبر","ديسمبر"];
+function _arMonthLabel(d){ return AR_MONTHS[d.getMonth()]+" "+toAr(d.getFullYear()); }
+function _iniBlipCol(p){ if(p<=0) return "#7f93a8"; if(p>=75) return "#2ECC8F"; if(p>=50) return "#ecc94b"; if(p>=25) return "#e0524b"; return "#9b1c1c"; }
+
+let _iniView="cards";
+function setIniView(v){
+  _iniView=v;
+  document.querySelectorAll("#iniViewSeg .ivs").forEach(b=>b.classList.toggle("on",b.dataset.view===v));
+  document.getElementById("initiativesList").style.display=v==="cards"?"":"none";
+  document.getElementById("initiativesGantt").style.display=v==="gantt"?"":"none";
+  document.getElementById("initiativesRadar").style.display=v==="radar"?"":"none";
+  if(v==="gantt") renderIniGantt();
+  if(v==="radar") renderIniRadar();
+}
+
+/* ===== Initiatives Gantt ===== */
+function renderIniGantt(){
+  const el=document.getElementById("initiativesGantt"); if(!el) return;
+  const inis=STATE.initiatives;
+  if(!inis.length){ el.innerHTML=`<div class="empty" style="padding:24px">لا توجد مبادرات لعرض الخط الزمني</div>`; return; }
+  const dated=inis.filter(i=>i.start&&i.end);
+  let minT,maxT;
+  if(dated.length){
+    const allTs=dated.flatMap(i=>[new Date(i.start).getTime(),new Date(i.end).getTime()]);
+    minT=Math.min(...allTs); maxT=Math.max(...allTs);
+  } else {
+    const now=Date.now(); minT=now-15552000000; maxT=now+15552000000;
+  }
+  const range=Math.max(1,maxT-minT);
+  // month ticks ~ aim for 10-14 labels
+  const months=[];
+  const cur=new Date(minT); cur.setDate(1);
+  const monthSpan=(maxT-minT)/(1000*60*60*24*30.4);
+  const step=Math.max(1,Math.round(monthSpan/12));
+  let guard=0;
+  while(cur.getTime()<=maxT && guard<240){
+    months.push(new Date(cur));
+    cur.setMonth(cur.getMonth()+step);
+    guard++;
+  }
+  const ticks=months.map(d=>{
+    const left=((d.getTime()-minT)/range*100);
+    return `<div class="ini-gantt-tick" style="right:${left.toFixed(2)}%"><span>${_arMonthLabel(d)}</span></div>`;
+  }).join("");
+  const todayT=Date.now();
+  const todayLeft=(todayT>=minT&&todayT<=maxT)?((todayT-minT)/range*100):null;
+  const todayMarker=todayLeft!==null?`<div class="ini-gantt-today" style="right:${todayLeft.toFixed(2)}%"><span>اليوم</span></div>`:"";
+  const rows=inis.map(ini=>{
+    const p=iniEff(ini);const col=kpiHex(p);
+    const hasD=ini.start&&ini.end;
+    const sT=hasD?new Date(ini.start).getTime():minT;
+    const eT=hasD?new Date(ini.end).getTime():maxT;
+    const left=((sT-minT)/range*100);
+    const width=Math.max(1.5,((eT-sT)/range*100));
+    return `<div class="ini-gantt-row">
+      <div class="ini-gantt-label" title="${esc(ini.name)}">${esc(ini.name)}</div>
+      <div class="ini-gantt-track">
+        ${todayMarker}
+        <div class="ini-gantt-bar" style="right:${left.toFixed(2)}%;width:${width.toFixed(2)}%;background:${col}22;border:1px solid ${col}" onclick="showInitiativeDetail('${ini.id}')" title="${esc(ini.name)} — ${toAr(p)}%">
+          <div class="ini-gantt-fill" style="width:${p}%;background:${col}"></div>
+          <span class="ini-gantt-barpct">${toAr(p)}%</span>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  el.innerHTML=`<div class="ini-gantt-wrap">
+    <div class="ini-gantt-inner">
+      <div class="ini-gantt-axis"><div class="ini-gantt-axis-track">${ticks}${todayMarker}</div></div>
+      <div class="ini-gantt-rows">${rows}</div>
+    </div>
+  </div>`;
+}
+
+/* ===== Initiatives Radar (sonar) ===== */
+function renderIniRadar(){
+  const el=document.getElementById("initiativesRadar"); if(!el) return;
+  const inis=STATE.initiatives;
+  if(!inis.length){ el.innerHTML=`<div class="empty" style="padding:24px">لا توجد مبادرات لعرض الرادار</div>`; return; }
+  const SZ=520, C=SZ/2, MAXR=C-46;
+  const rings=[0,20,40,60,80].map(v=>{
+    const r=MAXR*(1-v/100);
+    return `<circle cx="${C}" cy="${C}" r="${r.toFixed(1)}" class="ini-radar-ring"/>
+      <text x="${C}" y="${(C-r+13).toFixed(1)}" class="ini-radar-ringlbl">${toAr(v)}%</text>`;
+  }).join("");
+  const spokes=[0,45,90,135,180,225,270,315].map(deg=>{
+    const a=deg*Math.PI/180;
+    return `<line x1="${C}" y1="${C}" x2="${(C+MAXR*Math.cos(a)).toFixed(1)}" y2="${(C+MAXR*Math.sin(a)).toFixed(1)}" class="ini-radar-spoke"/>`;
+  }).join("");
+  const N=inis.length;
+  const blips=inis.map((ini,i)=>{
+    const p=iniEff(ini);
+    const r=MAXR*(1-p/100);
+    const a=(360/N)*i*Math.PI/180 - Math.PI/2;
+    const x=(C+r*Math.cos(a)).toFixed(1);
+    const y=(C+r*Math.sin(a)).toFixed(1);
+    const col=_iniBlipCol(p);
+    const label=ini.num?esc(ini.num):toAr(i+1);
+    const st=statusPill(calcStatus(p,ini.end)).replace(/"/g,"&quot;");
+    return `<g class="ini-radar-blip" tabindex="0"
+        onclick="showInitiativeDetail('${ini.id}')"
+        onmouseenter="_iniRadarTip(event,'${esc(ini.name).replace(/'/g,"\\'")}',${p},'${ini.id}')"
+        onmouseleave="_iniRadarTipHide()">
+      <circle cx="${x}" cy="${y}" r="13" fill="${col}" stroke="#fff" stroke-width="1.5"/>
+      <text x="${x}" y="${(+y+4).toFixed(1)}" text-anchor="middle" font-size="12" font-weight="700" fill="#0b1626">${label}</text>
+    </g>`;
+  }).join("");
+  el.innerHTML=`<div class="ini-radarbox">
+    <svg viewBox="0 0 ${SZ} ${SZ}" class="ini-radar-svg" width="100%" style="max-width:560px">
+      <defs>
+        <radialGradient id="iniRadarGrad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#103a52"/>
+          <stop offset="70%" stop-color="#0a2333"/>
+          <stop offset="100%" stop-color="#06151f"/>
+        </radialGradient>
+        <linearGradient id="iniSweepGrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#2ECC8F" stop-opacity="0.55"/>
+          <stop offset="100%" stop-color="#2ECC8F" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <circle cx="${C}" cy="${C}" r="${MAXR}" fill="url(#iniRadarGrad)"/>
+      ${rings}
+      ${spokes}
+      <g class="ini-radar-sweep">
+        <path d="M ${C} ${C} L ${C+MAXR} ${C} A ${MAXR} ${MAXR} 0 0 0 ${(C+MAXR*Math.cos(-0.6)).toFixed(1)} ${(C+MAXR*Math.sin(-0.6)).toFixed(1)} Z" fill="url(#iniSweepGrad)"/>
+        <animateTransform attributeName="transform" type="rotate" from="0 ${C} ${C}" to="360 ${C} ${C}" dur="6s" repeatCount="indefinite"/>
+      </g>
+      <circle cx="${C}" cy="${C}" r="4" fill="#2ECC8F"/>
+      <text x="${C}" y="${C-9}" text-anchor="middle" class="ini-radar-centerlbl">مكتمل</text>
+      ${blips}
+    </svg>
+    <div class="ini-radar-tip" id="iniRadarTip" hidden></div>
+  </div>`;
+}
+function _iniRadarTip(ev,name,p,id){
+  const tip=document.getElementById("iniRadarTip"); if(!tip) return;
+  const ini=STATE.initiatives.find(x=>x.id===id);
+  const stTxt={done:"مكتمل",todo:"جارٍ",late:"متأخر",none:"لم يبدأ"}[calcStatus(p,ini?ini.end:"")]||"";
+  tip.hidden=false;
+  tip.innerHTML=`<b>${name}</b><br>الإنجاز: ${toAr(p)}% · ${stTxt}`;
+  const box=tip.parentElement.getBoundingClientRect();
+  tip.style.left=(ev.clientX-box.left+12)+"px";
+  tip.style.top=(ev.clientY-box.top+12)+"px";
+}
+function _iniRadarTipHide(){ const tip=document.getElementById("iniRadarTip"); if(tip) tip.hidden=true; }
+
+/* ============================================================
+   PRESENTATION / MEETING MODE (Cover Flow)
+   ============================================================ */
+let _presentIdx=0, _presentCount=0;
+function openPresentation(){
+  const ov=document.getElementById("presentOv");
+  const stage=document.getElementById("presentStage");
+  const inis=STATE.initiatives;
+  document.getElementById("presentDate").textContent=fmtDate(todayISO());
+  // Overview slide
+  const total=inis.length;
+  const avg=total?Math.round(inis.reduce((s,i)=>s+iniEff(i),0)/total):0;
+  const brk={done:0,ontrack:0,late:0,none:0};
+  inis.forEach(i=>{ const st=calcStatus(iniEff(i),i.end); brk[st]=(brk[st]||0)+1; });
+  const ovSlide=`<div class="present-slide present-overview">
+    <div class="ps-h">ملخص المحفظة</div>
+    <div class="ps-ov-stats">
+      <div class="ps-ov-stat"><div class="ps-ov-num">${toAr(total)}</div><div class="ps-ov-lbl">إجمالي المبادرات</div></div>
+      <div class="ps-ov-stat"><div class="ps-ov-num" style="color:${kpiHex(avg)}">${toAr(avg)}%</div><div class="ps-ov-lbl">متوسط الإنجاز</div></div>
+      <div class="ps-ov-stat"><div class="ps-ov-num" style="color:#2ECC8F">${toAr(brk.done||0)}</div><div class="ps-ov-lbl">مكتملة</div></div>
+      <div class="ps-ov-stat"><div class="ps-ov-num" style="color:#179C7C">${toAr(brk.todo||0)}</div><div class="ps-ov-lbl">جارية</div></div>
+      <div class="ps-ov-stat"><div class="ps-ov-num" style="color:#e0824b">${toAr(brk.late||0)}</div><div class="ps-ov-lbl">متأخرة</div></div>
+      <div class="ps-ov-stat"><div class="ps-ov-num" style="color:#8d9bb5">${toAr(brk.none||0)}</div><div class="ps-ov-lbl">لم تبدأ</div></div>
+    </div>
+    <div class="ps-ov-gantt" id="presentOvGantt"></div>
+  </div>`;
+  const iniSlides=inis.map(ini=>{
+    const p=iniEff(ini);
+    const st=calcStatus(p,ini.end);
+    const mss=ini.milestones||[];
+    const doneMs=mss.filter(m=>msEff(m)>=100).length;
+    const msList=mss.length?mss.map(m=>{
+      const mp=msEff(m);
+      return `<div class="ps-ms-row">
+        <span class="ps-ms-name">${esc(m.name)}</span>
+        <span class="ps-ms-bar"><span style="width:${mp}%;background:${kpiHex(mp)}"></span></span>
+        <span class="ps-ms-pct" style="color:${kpiHex(mp)}">${toAr(mp)}%</span>
+        ${statusPill(calcStatus(mp,m.end))}
+      </div>`;
+    }).join(""):`<div style="color:#9fb0c4;font-style:italic">لا توجد معالم</div>`;
+    return `<div class="present-slide">
+      <div class="ps-card">
+        <div class="ps-card-head">
+          ${ini.num?`<span class="ps-num">مبادرة ${esc(ini.num)}</span>`:""}
+          <div class="ps-name">${esc(ini.name)}</div>
+          ${statusPill(st)}
+        </div>
+        <div class="ps-card-body">
+          <div class="ps-gauge">${svgGauge(p,220,128)}</div>
+          <div class="ps-meta">
+            ${ini.owner?`<div><span class="ps-meta-l">المسؤول</span><b>${esc(ini.owner)}</b></div>`:""}
+            <div><span class="ps-meta-l">المدة</span><b>${ini.start?fmtDate(ini.start):"—"} ← ${ini.end?fmtDate(ini.end):"—"}</b></div>
+            <div><span class="ps-meta-l">المعالم</span><b>${toAr(doneMs)} / ${toAr(mss.length)}</b></div>
+            ${ini.classification?`<div><span class="ps-meta-l">التصنيف</span><b>${esc(ini.classification)}</b></div>`:""}
+            ${ini.exec_output?`<div><span class="ps-meta-l">المخرج التنفيذي</span><b>${esc(ini.exec_output)}</b></div>`:""}
+          </div>
+        </div>
+        <div class="ps-ms-list">
+          <div class="ps-ms-h">المعالم</div>
+          ${msList}
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  stage.innerHTML=ovSlide+iniSlides;
+  _presentCount=inis.length+1;
+  _presentIdx=0;
+  ov.hidden=false;
+  document.body.classList.add("present-open");
+  // render gantt into overview
+  const g=document.getElementById("presentOvGantt");
+  if(g){
+    const saved=document.getElementById("initiativesGantt");
+    // build gantt html directly via temporary call
+    renderIniGantt();
+    g.innerHTML=saved?saved.innerHTML:"";
+  }
+  _presentGo(0);
+  document.addEventListener("keydown",_presentKey);
+}
+function _presentGo(idx){
+  const stage=document.getElementById("presentStage");
+  const slides=stage.querySelectorAll(".present-slide");
+  if(!slides.length) return;
+  _presentIdx=Math.max(0,Math.min(slides.length-1,idx));
+  slides[_presentIdx].scrollIntoView({behavior:"smooth",inline:"center",block:"nearest"});
+  const counter=document.getElementById("presentCounter");
+  if(_presentIdx===0) counter.textContent="ملخص المحفظة";
+  else counter.textContent=`مبادرة ${toAr(_presentIdx)} / ${toAr(_presentCount-1)}`;
+}
+function _presentKey(e){
+  if(e.key==="Escape"){ closePresentation(); }
+  else if(e.key==="ArrowLeft"){ _presentGo(_presentIdx+1); }   // RTL: left = next
+  else if(e.key==="ArrowRight"){ _presentGo(_presentIdx-1); }
+}
+function closePresentation(){
+  const ov=document.getElementById("presentOv");
+  ov.hidden=true;
+  document.body.classList.remove("present-open");
+  document.removeEventListener("keydown",_presentKey);
+}
+
+/* ============================================================
    RENDER: PORTFOLIOS
    ============================================================ */
 function renderPortfolios(){
@@ -751,7 +1019,7 @@ function renderPortfolios(){
   el.innerHTML=STATE.portfolios.map(pf=>{
     const initIds=pf.initiative_ids||[];
     const inits=initIds.map(id=>STATE.initiatives.find(i=>i.id===id)).filter(Boolean);
-    const avgPct=inits.length?Math.round(inits.reduce((s,i)=>s+(+i.pct||0),0)/inits.length):0;
+    const avgPct=inits.length?Math.round(inits.reduce((s,i)=>s+iniEff(i),0)/inits.length):0;
     return `
     <div class="portfolio-card">
       <div class="pf-head">
@@ -762,7 +1030,7 @@ function renderPortfolios(){
       </div>
       <div class="pf-body">
         ${inits.map(ini=>{
-          const pct=+ini.pct||0;
+          const pct=iniEff(ini);
           const col=kpiHex(pct);
           const st=calcStatus(pct,ini.end);
           return `<div class="initiative-row" onclick="showInitiativeDetail('${ini.id}')">
@@ -957,6 +1225,23 @@ function switchTab(tab){
 document.querySelectorAll(".ltab").forEach(btn=>{
   btn.addEventListener("click",()=>switchTab(btn.dataset.tab));
 });
+
+/* Initiatives view switcher + presentation */
+(function(){
+  const seg=document.getElementById("iniViewSeg");
+  if(seg) seg.addEventListener("click",e=>{
+    const b=e.target.closest(".ivs"); if(!b) return;
+    setIniView(b.dataset.view);
+  });
+  const pb=document.getElementById("presentBtn");
+  if(pb) pb.addEventListener("click",openPresentation);
+  const pPrev=document.getElementById("presentPrev");
+  const pNext=document.getElementById("presentNext");
+  const pClose=document.getElementById("presentClose");
+  if(pPrev) pPrev.addEventListener("click",()=>_presentGo(_presentIdx-1));
+  if(pNext) pNext.addEventListener("click",()=>_presentGo(_presentIdx+1));
+  if(pClose) pClose.addEventListener("click",closePresentation);
+})();
 
 /* Strategy Map toggle */
 let _mapOn=false;
@@ -1346,7 +1631,7 @@ function showInitiativeDetail(initId){
 }
 
 function _renderIniModal(ini){
-  const pct=+ini.pct||0;
+  const pct=iniEff(ini);
   const st=calcStatus(pct,ini.end);
   const linkedPfs=STATE.portfolios.filter(pf=>(pf.initiative_ids||[]).includes(ini.id));
   const isOwner=SESSION&&SESSION.username===ini.owner;
@@ -1356,11 +1641,26 @@ function _renderIniModal(ini){
   // ── Stats bar ──
   const mss=(ini.milestones||[]);
   const totalMs=mss.length;
-  const doneMs=mss.filter(m=>+m.pct>=100).length;
+  const doneMs=mss.filter(m=>msEff(m)>=100).length;
 
   // ── Milestones HTML ──
   const msHTML=mss.length?mss.map((m,mi)=>{
-    const mc=kpiHex(+m.pct||0);
+    const meff=msEff(m);
+    const mc=kpiHex(meff);
+    const pls=Array.isArray(m.plans)?m.plans:[];
+    const plansHTML=(pls.length||canEdit)?`<div class="ms-plans">
+      ${pls.map(p=>{
+        const pp=_clampPct(p.progress);const pc=kpiHex(pp);
+        return `<div class="ms-plan-row">
+          <span class="ms-plan-name">${esc(p.name)}</span>
+          <span class="ms-plan-w" title="الوزن">×${toAr(Math.max(1,Math.round(p.weight||1)))}</span>
+          <span class="ms-plan-bar"><span style="width:${pp}%;background:${pc}"></span></span>
+          <span class="ms-plan-pct" style="color:${pc}">${toAr(pp)}%</span>
+          ${canEdit?`<button class="ebtn sm danger" onclick="event.stopPropagation();delPlan('${ini.id}','${m.id}','${p.id}')" type="button">×</button>`:""}
+        </div>`;
+      }).join("")}
+      ${canEdit?`<button class="ebtn sm" onclick="event.stopPropagation();showAddPlan('${ini.id}','${m.id}')" type="button" style="margin-top:4px">+ خطة</button>`:""}
+    </div>`:"";
     const types=(m.type_ids||[]).map(tid=>{const t=STATE.milestone_types.find(x=>x.id===tid);return t?`<span class="ms-type-chip">${esc(t.name)}</span>`:""}).join("");
     const ftags=(m.follow_up_tags||[]).map(tag=>`<span class="ms-type-chip" style="background:rgba(13,59,107,.07);color:var(--navy);border-color:rgba(13,59,107,.18)">${esc(tag)}</span>`).join("");
     const metaLine=[
@@ -1374,7 +1674,8 @@ function _renderIniModal(ini){
         <div class="ms-name">${esc(m.name)}${types?`<span style="display:inline-flex;gap:4px;margin-right:6px">${types}</span>`:""}</div>
         ${ftags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">${ftags}</div>`:""}
         ${m.start||m.end?`<div class="ms-dates">${m.start?fmtDate(m.start):""}${m.end?" ← "+fmtDate(m.end):""}</div>`:""}
-        <div class="ms-bar-wrap"><div class="ms-bar"><div class="ms-fill" style="width:${+m.pct||0}%;background:${mc}"></div></div><span class="ms-pct" style="color:${mc}">${toAr(+m.pct||0)}%</span></div>
+        <div class="ms-bar-wrap"><div class="ms-bar"><div class="ms-fill" style="width:${meff}%;background:${mc}"></div></div><span class="ms-pct" style="color:${mc}">${toAr(meff)}%</span></div>
+        ${plansHTML}
         ${metaLine?`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:3px">${metaLine}</div>`:""}
         ${m.output?`<div class="ms-notes" style="margin-top:5px"><b style="font-size:11px;color:var(--teal)">المخرج:</b> ${esc(m.output)}</div>`:""}
         ${m.notes?`<div class="ms-notes">${esc(m.notes)}</div>`:""}
@@ -1482,11 +1783,12 @@ function portfolioForm(pf){
   const initIds=pf?(pf.initiative_ids||[]):[];
   const checks=STATE.initiatives.length?`<div class="init-pick-list">${STATE.initiatives.map(ini=>{
     const sel=initIds.includes(ini.id);
-    const col=kpiHex(+ini.pct||0);
+    const _ipct=iniEff(ini);
+    const col=kpiHex(_ipct);
     return `<label class="init-pick-item${sel?" selected":""}" onclick="this.classList.toggle('selected');this.querySelector('input').checked=!this.querySelector('input').checked">
       <input type="checkbox" name="initCheck" value="${ini.id}" ${sel?"checked":""} style="accent-color:var(--teal)">
       <span class="ip-name">${esc(ini.name)}</span>
-      <span class="ip-pct" style="color:${col}">${toAr(+ini.pct||0)}%</span>
+      <span class="ip-pct" style="color:${col}">${toAr(_ipct)}%</span>
     </label>`;
   }).join("")}</div>`:`<div style="color:#aab5c4;font-size:12.5px;font-style:italic">لا توجد مبادرات — أضف مبادرات أولاً من قسم المبادرات</div>`;
   return `<div class="eform">
@@ -1913,6 +2215,43 @@ function moveMilestone(iniId,msId,dir){
   const j=i+dir; if(j<0||j>=ms.length) return;
   [ms[i],ms[j]]=[ms[j],ms[i]];
   dirtySave(); _renderIniModal(ini);
+}
+
+/* ============================================================
+   WEIGHTED MILESTONE PLANS
+   ============================================================ */
+function showAddPlan(iniId,msId){
+  openModal("إضافة خطة فرعية",`<div class="eform">
+    <div class="fl"><label>اسم الخطة *</label><input id="fPlanName" placeholder="اسم الخطة الفرعية…"></div>
+    <div class="frow">
+      <div class="fl"><label>الوزن</label><input id="fPlanWeight" type="number" min="1" value="1"></div>
+      <div class="fl"><label>نسبة الإنجاز (%)</label><input id="fPlanProgress" type="number" min="0" max="100" value="0"></div>
+    </div>
+    <div class="faprow">
+      <button class="ebtn primary" onclick="savePlan('${iniId}','${msId}')" type="button">إضافة</button>
+      <button class="ebtn" onclick="showInitiativeDetail('${iniId}')" type="button">إلغاء</button>
+    </div>
+  </div>`);
+  setTimeout(()=>document.getElementById("fPlanName").focus(),50);
+}
+function savePlan(iniId,msId){
+  const name=(document.getElementById("fPlanName").value||"").trim(); if(!name) return;
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  const m=(ini.milestones||[]).find(x=>x.id===msId); if(!m) return;
+  if(!Array.isArray(m.plans)) m.plans=[];
+  m.plans.push({
+    id:uid(), name,
+    weight:Math.max(1,Math.round(+document.getElementById("fPlanWeight").value||1)),
+    progress:_clampPct(document.getElementById("fPlanProgress").value)
+  });
+  logChange("إضافة","خطة معلم",name); dirtySave(); _renderIniModal(ini);
+}
+function delPlan(iniId,msId,planId){
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  const m=(ini.milestones||[]).find(x=>x.id===msId); if(!m) return;
+  const p=(m.plans||[]).find(x=>x.id===planId);
+  m.plans=(m.plans||[]).filter(x=>x.id!==planId);
+  logChange("حذف","خطة معلم",p?p.name:""); dirtySave(); _renderIniModal(ini);
 }
 
 /* ============================================================

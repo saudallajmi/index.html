@@ -2,17 +2,21 @@
    STATE
    ============================================================ */
 let STATE = {
-  identity:     { vision:"", mission:"", values:[] },
-  pillars:      [],
-  orientations: [],
-  goals:        [],
-  initiatives:  [],
-  portfolios:   [],
-  exec_plans:   [],
-  oper_goals:   [],
-  kpi_library:  [],
-  change_log:   [],
-  updated_at:   null,
+  identity:        { vision:"", mission:"", values:[] },
+  pillars:         [],
+  perspectives:    [],   // مناظير BSC — قابلة للتعديل
+  orientations:    [],
+  goals:           [],   // + start, end, perspective_id per goal
+  initiatives:     [],   // + num, desc, notes, milestones[], linked_projects[]
+  portfolios:      [],
+  exec_plans:      [],
+  oper_goals:      [],
+  kpi_library:     [],
+  milestone_types: [],   // admin-managed milestone type options
+  kpi_options:     { polarities:[], cumulatives:[], frequencies:[], departments:[], data_sources:[] },
+  kpi_reports:     [],   // measurement reports (pending / reviewed)
+  change_log:      [],
+  updated_at:      null,
 };
 let SESSION   = null;
 let ADMIN_MODE = false;
@@ -29,10 +33,11 @@ function dirtySave(){
     if(!SESSION) return;
     const body={
       action:"save", username:SESSION.username, password:SESSION.password,
-      identity:STATE.identity, pillars:STATE.pillars, orientations:STATE.orientations,
-      goals:STATE.goals, initiatives:STATE.initiatives, portfolios:STATE.portfolios,
-      exec_plans:STATE.exec_plans, oper_goals:STATE.oper_goals, kpi_library:STATE.kpi_library,
-      change_log:STATE.change_log
+      identity:STATE.identity, pillars:STATE.pillars, perspectives:STATE.perspectives,
+      orientations:STATE.orientations, goals:STATE.goals, initiatives:STATE.initiatives,
+      portfolios:STATE.portfolios, exec_plans:STATE.exec_plans, oper_goals:STATE.oper_goals,
+      kpi_library:STATE.kpi_library, milestone_types:STATE.milestone_types,
+      kpi_options:STATE.kpi_options, kpi_reports:STATE.kpi_reports, change_log:STATE.change_log
     };
     const res=await apiPost(body);
     if(!res||res.err) return;
@@ -124,10 +129,11 @@ async function saveAll(){
   clearTimeout(_saveTimer);
   const body={
     action:"save", username:SESSION.username, password:SESSION.password,
-    identity:STATE.identity, pillars:STATE.pillars, orientations:STATE.orientations,
-    goals:STATE.goals, initiatives:STATE.initiatives, portfolios:STATE.portfolios,
-    exec_plans:STATE.exec_plans, oper_goals:STATE.oper_goals, kpi_library:STATE.kpi_library,
-    change_log:STATE.change_log
+    identity:STATE.identity, pillars:STATE.pillars, perspectives:STATE.perspectives,
+    orientations:STATE.orientations, goals:STATE.goals, initiatives:STATE.initiatives,
+    portfolios:STATE.portfolios, exec_plans:STATE.exec_plans, oper_goals:STATE.oper_goals,
+    kpi_library:STATE.kpi_library, milestone_types:STATE.milestone_types,
+    kpi_options:STATE.kpi_options, kpi_reports:STATE.kpi_reports, change_log:STATE.change_log
   };
   const res=await apiPost(body);
   if(res.err){ toast(res.err,"err"); return; }
@@ -150,9 +156,13 @@ async function init(){
     if(data.portfolios)   STATE.portfolios   = data.portfolios;
     if(data.exec_plans)   STATE.exec_plans   = data.exec_plans;
     if(data.oper_goals)   STATE.oper_goals   = data.oper_goals;
-    if(data.kpi_library)  STATE.kpi_library  = data.kpi_library;
-    if(data.change_log)   STATE.change_log   = data.change_log;
-    if(data.updated_at)   STATE.updated_at   = data.updated_at;
+    if(data.kpi_library)     STATE.kpi_library     = data.kpi_library;
+    if(data.perspectives)    STATE.perspectives    = data.perspectives;
+    if(data.milestone_types) STATE.milestone_types = data.milestone_types;
+    if(data.kpi_options)     STATE.kpi_options     = Object.assign({polarities:[],cumulatives:[],frequencies:[],departments:[],data_sources:[]},data.kpi_options);
+    if(data.kpi_reports)     STATE.kpi_reports     = data.kpi_reports;
+    if(data.change_log)      STATE.change_log      = data.change_log;
+    if(data.updated_at)      STATE.updated_at      = data.updated_at;
 
     // Migrate: old portfolios had nested .initiatives[] — move them top-level
     STATE.portfolios.forEach(pf=>{
@@ -333,18 +343,24 @@ function kpiAvg(kpis){
   return Math.round(kpis.reduce((s,k)=>s+Math.min(100,(+k.actual||0)/(+k.target||1)*100),0)/kpis.length);
 }
 
-function kpiTable(kpis,parentId,admin){
+function kpiTable(kpis,parentId,admin,scope){
   if(!kpis||!kpis.length) return admin?`<div style="color:#aab5c4;font-size:12px;margin-bottom:6px">لا توجد مؤشرات</div>`:"";
-  return `<table class="kpi-tbl"><thead><tr><th>المؤشر</th><th>المستهدف</th><th>الفعلي</th><th>نسبة الإنجاز</th>${admin?"<th></th>":""}</tr></thead>
+  scope=scope||"goal";
+  return `<table class="kpi-tbl"><thead><tr><th>المؤشر</th><th>المستهدف</th><th>الفعلي</th><th>نسبة الإنجاز</th><th></th></tr></thead>
   <tbody>${kpis.map(k=>{
     const pct=Math.min(100,Math.round((+k.actual||0)/(+k.target||1)*100));
     const col=kpiHex(pct);
+    const isOwner=SESSION&&k.kpi_owner&&SESSION.username===k.kpi_owner;
+    const hasPending=(STATE.kpi_reports||[]).some(r=>r.kpi_id===k.id&&r.status==="pending");
     return `<tr>
-      <td class="kn">${esc(k.name)}</td>
+      <td class="kn">${esc(k.name)}${k.code?`<span style="font-size:10.5px;color:var(--muted);margin-right:4px">${esc(k.code)}</span>`:""}</td>
       <td style="color:var(--muted)">${esc(k.target)} ${esc(k.unit||"")}</td>
       <td style="color:${col};font-weight:700">${esc(k.actual)} ${esc(k.unit||"")}</td>
       <td><div class="kprog"><div class="kbar"><div class="kfill" style="width:${pct}%;background:${col}"></div></div><span style="font-size:12px;font-weight:700;color:${col};min-width:36px">${toAr(pct)}%</span></div></td>
-      ${admin?`<td><button class="ebtn sm danger" onclick="delKpi('${parentId}','${k.id}')" type="button">حذف</button></td>`:""}</tr>`;
+      <td style="white-space:nowrap">
+        ${admin?`<button class="ebtn sm danger" onclick="delKpi('${parentId}','${k.id}')" type="button">حذف</button>`:""}
+        ${(isOwner||admin)&&SESSION?`<button class="ebtn sm teal" onclick="showSubmitMeasurement('${scope}','${parentId}','${k.id}')" type="button" ${hasPending?"disabled title='يوجد تقرير معلّق'":""}>رفع قياس</button>`:""}
+      </td></tr>`;
   }).join("")}</tbody></table>`;
 }
 
@@ -361,37 +377,49 @@ function renderGoals(){
     const avg=kpiAvg(g.kpis);
     const col=kpiHex(avg);
     const pillar=STATE.pillars.find(p=>p.id===g.pillar_id);
+    const persp=STATE.perspectives.find(p=>p.id===g.perspective_id);
+    const PERSP_COLORS={"مالي":"#2ECC8F","عملاء":"#179C7C","عمليات":"#C9A24B","تعلم":"#8B5CF6"};
+    const pc=persp?(PERSP_COLORS[Object.keys(PERSP_COLORS).find(k=>persp.name.includes(k))||""]||"var(--teal)"):"";
     return `
     <div class="goal-card" id="gc-${g.id}">
       <div class="gc-head" onclick="toggleGoal('${g.id}')">
         <div class="gc-num">${toAr(gi+1)}</div>
-        <div class="gc-name">${esc(g.name)}${pillar?`<div style="font-size:11px;font-weight:500;color:var(--teal);margin-top:2px">${esc(pillar.name)}</div>`:""}</div>
+        <div class="gc-name">
+          ${esc(g.name)}
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+            ${pillar?`<span style="font-size:11px;font-weight:600;color:var(--teal)">${esc(pillar.name)}</span>`:""}
+            ${persp?`<span class="persp-badge" style="background:${pc}20;color:${pc};border:1px solid ${pc}40">${esc(persp.name)}</span>`:""}
+            ${g.start||g.end?`<span style="font-size:11px;color:var(--muted)">${g.start?fmtDate(g.start):""}${g.end?" ← "+fmtDate(g.end):""}</span>`:""}
+          </div>
+        </div>
         <div class="gc-meta">
           <span class="gc-pct" style="color:${col}">${toAr(avg)}%</span>
-          ${statusPill(calcStatus(avg,""))}
+          ${statusPill(calcStatus(avg,g.end||""))}
           ${ADMIN_MODE?`<button class="ebtn sm" onclick="event.stopPropagation();editGoal('${g.id}')" type="button">تعديل</button>
           <button class="ebtn sm danger" onclick="event.stopPropagation();delGoal('${g.id}')" type="button">حذف</button>`:""}
         </div>
       </div>
       <div class="gc-body">
         <div class="gc-bar"><span style="width:${avg}%;background:${col}"></span></div>
-        ${kpiTable(g.kpis,g.id,ADMIN_MODE)}
+        ${(g.kpis&&g.kpis.length)||ADMIN_MODE?`<div class="kpi-sec-head" style="margin-top:8px"><span>مؤشرات الأداء</span>${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddKpi('goal','${g.id}')" type="button">+ مؤشر</button>`:""}</div>${kpiTable(g.kpis,g.id,ADMIN_MODE)||`<div style="color:#aab5c4;font-size:12px;padding:4px 0">لا توجد مؤشرات</div>`}`:""}
         ${subs.length?`
         <div style="margin-top:14px">
-          <div style="font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:8px">الأهداف الفرعية:</div>
+          <div style="font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:8px">الأهداف الفرعية (التشغيلية):</div>
           ${subs.map(s=>{
             const dets=STATE.goals.filter(d=>d.parent_id===s.id&&d.type==="detailed");
+            const savg=kpiAvg(s.kpis); const scol=kpiHex(savg);
             return `<div class="sub-goal" id="sg-${s.id}">
               <div class="sg-head" onclick="toggleSubGoal('${s.id}')">
-                <div class="sg-dot"></div>
-                <div class="sg-name">${esc(s.name)}</div>
+                <div class="sg-dot" style="background:${scol}"></div>
+                <div class="sg-name">${esc(s.name)}${s.start||s.end?`<span style="font-size:11px;color:var(--muted);margin-right:8px">${s.start?fmtDate(s.start):""}${s.end?" ← "+fmtDate(s.end):""}</span>`:""}</div>
+                <span style="font-size:12px;font-weight:700;color:${scol};margin-right:auto">${toAr(savg)}%</span>
                 ${ADMIN_MODE?`<button class="ebtn sm" onclick="event.stopPropagation();editGoal('${s.id}')" type="button">تعديل</button>
                 <button class="ebtn sm danger" onclick="event.stopPropagation();delGoal('${s.id}')" type="button">حذف</button>`:""}
               </div>
               <div class="sg-body">
-                ${kpiTable(s.kpis,s.id,ADMIN_MODE)}
+                ${(s.kpis&&s.kpis.length)||ADMIN_MODE?`<div class="kpi-sec-head"><span>مؤشرات</span>${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddKpi('goal','${s.id}')" type="button">+ مؤشر</button>`:""}</div>${kpiTable(s.kpis,s.id,ADMIN_MODE)||`<div style="color:#aab5c4;font-size:12px">لا توجد مؤشرات</div>`}`:""}
                 ${dets.length?`<div style="font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 6px">الأهداف التفصيلية:</div>
-                  ${dets.map(d=>`<div class="det-goal"><div class="dg-bullet"></div><div class="dg-name">${esc(d.name)}</div>${ADMIN_MODE?`<button class="ebtn sm danger" onclick="delGoal('${d.id}')" type="button">حذف</button>`:""}</div>`).join("")}`:""}
+                  ${dets.map(d=>`<div class="det-goal"><div class="dg-bullet"></div><div class="dg-name">${esc(d.name)}${d.start||d.end?`<span style="font-size:11px;color:var(--muted);margin-right:6px">${d.start?fmtDate(d.start):""}${d.end?" ← "+fmtDate(d.end):""}</span>`:""}</div>${ADMIN_MODE?`<div style="display:flex;gap:4px"><button class="ebtn sm" onclick="editGoal('${d.id}')" type="button">تعديل</button><button class="ebtn sm danger" onclick="delGoal('${d.id}')" type="button">حذف</button></div>`:""}</div>`).join("")}`:""}
                 ${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddSubGoal('${g.id}','${s.id}','detailed')" type="button" style="margin-top:8px">+ هدف تفصيلي</button>`:""}
               </div>
             </div>`;
@@ -399,7 +427,6 @@ function renderGoals(){
         </div>`:""}
         ${ADMIN_MODE?`<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
           <button class="ebtn sm" onclick="showAddSubGoal('${g.id}',null,'sub')" type="button">+ هدف فرعي</button>
-          <button class="ebtn sm" onclick="showAddKpi('goal','${g.id}')" type="button">+ مؤشر KPI</button>
         </div>`:""}
       </div>
     </div>`;
@@ -578,6 +605,8 @@ document.getElementById("adminToggle").addEventListener("click",()=>{
   if(SESSION.role==="owner"){
     document.getElementById("manageUsersBtn").style.display=ADMIN_MODE?"":"none";
     document.getElementById("kpiLibraryBtn").style.display=ADMIN_MODE?"":"none";
+    document.getElementById("adminSettingsBtn").style.display=ADMIN_MODE?"":"none";
+    document.getElementById("pendingRptsBtn").style.display=ADMIN_MODE?"":"none";
   }
   renderAll();
 });
@@ -601,6 +630,8 @@ document.getElementById("addOperGoalBtn").addEventListener("click",showAddOperGo
 document.getElementById("addInitiativeBtn").addEventListener("click",()=>showAddInitiative());
 
 document.getElementById("kpiLibraryBtn").addEventListener("click",showKpiLibraryModal);
+document.getElementById("adminSettingsBtn").addEventListener("click",showAdminSettings);
+document.getElementById("pendingRptsBtn").addEventListener("click",showPendingReports);
 
 function showAuth(){
   document.getElementById("authOv").classList.add("show");
@@ -626,6 +657,8 @@ document.getElementById("lgBtn").addEventListener("click",async()=>{
   if(res.role==="owner"){
     document.getElementById("manageUsersBtn").style.display="";
     document.getElementById("kpiLibraryBtn").style.display="";
+    document.getElementById("adminSettingsBtn").style.display="";
+    document.getElementById("pendingRptsBtn").style.display="";
   }
   renderAll();
   toast("مرحباً "+esc(res.username)+" ✓");
@@ -762,11 +795,20 @@ function delOrient(id){ const _do=STATE.orientations.find(o=>o.id===id||o===id);
 /* ============================================================
    GOAL CRUD
    ============================================================ */
+function _goalFormFields(g){
+  const pillarOpts=STATE.pillars.map(p=>`<option value="${p.id}"${g&&g.pillar_id===p.id?" selected":""}>${esc(p.name)}</option>`).join("");
+  const perspOpts=STATE.perspectives.map(p=>`<option value="${p.id}"${g&&g.perspective_id===p.id?" selected":""}>${esc(p.name)}</option>`).join("");
+  return `
+    <div class="fl"><label>اسم الهدف</label><input id="fGoalName" value="${esc(g?g.name:"")}" placeholder="الهدف الاستراتيجي…"></div>
+    ${pillarOpts?`<div class="fl"><label>الركيزة</label><select id="fGoalPillar"><option value="">— غير مرتبط —</option>${pillarOpts}</select></div>`:""}
+    ${perspOpts?`<div class="fl"><label>المنظور (BSC)</label><select id="fGoalPersp"><option value="">— غير مصنّف —</option>${perspOpts}</select></div>`:""}
+    <div class="frow">
+      <div class="fl"><label>تاريخ البدء</label><input id="fGoalStart" type="date" value="${esc(g?g.start||"":"")}"></div>
+      <div class="fl"><label>تاريخ الانتهاء</label><input id="fGoalEnd" type="date" value="${esc(g?g.end||"":"")}"></div>
+    </div>`;
+}
 function showAddGoal(){
-  const pillarOpts=STATE.pillars.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
-  openModal("إضافة هدف استراتيجي",`<div class="eform">
-    <div class="fl"><label>اسم الهدف الاستراتيجي</label><input id="fGoalName" placeholder="الهدف الاستراتيجي…"></div>
-    ${pillarOpts?`<div class="fl"><label>الركيزة المرتبطة</label><select id="fGoalPillar"><option value="">— لا توجد ركيزة —</option>${pillarOpts}</select></div>`:""}
+  openModal("إضافة هدف استراتيجي",`<div class="eform">${_goalFormFields(null)}
     <div class="faprow"><button class="ebtn primary" onclick="saveGoal(null,'general',null)" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
   </div>`);
   setTimeout(()=>document.getElementById("fGoalName").focus(),50);
@@ -781,26 +823,29 @@ function showAddSubGoal(parentId,subId,type){
 }
 function editGoal(id){
   const g=STATE.goals.find(x=>x.id===id); if(!g) return;
-  const pillarOpts=g.type==="general"?STATE.pillars.map(p=>`<option value="${p.id}"${g.pillar_id===p.id?" selected":""}>${esc(p.name)}</option>`).join(""):"";
-  openModal("تعديل الهدف",`<div class="eform">
-    <div class="fl"><label>الاسم</label><input id="fGoalName" value="${esc(g.name)}"></div>
-    ${pillarOpts?`<div class="fl"><label>الركيزة</label><select id="fGoalPillar"><option value="">— لا توجد ركيزة —</option>${pillarOpts}</select></div>`:""}
+  openModal("تعديل الهدف",`<div class="eform">${g.type==="general"?_goalFormFields(g):`<div class="fl"><label>الاسم</label><input id="fGoalName" value="${esc(g.name)}"></div><div class="frow"><div class="fl"><label>تاريخ البدء</label><input id="fGoalStart" type="date" value="${esc(g.start||"")}"></div><div class="fl"><label>تاريخ الانتهاء</label><input id="fGoalEnd" type="date" value="${esc(g.end||"")}"></div></div>`}
     <div class="faprow"><button class="ebtn primary" onclick="updateGoal('${id}')" type="button">حفظ</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
   </div>`);
+  setTimeout(()=>document.getElementById("fGoalName").focus(),50);
 }
 function updateGoal(id){
   const g=STATE.goals.find(x=>x.id===id); if(!g) return;
   g.name=document.getElementById("fGoalName").value.trim();
-  const ps=document.getElementById("fGoalPillar");
-  if(ps) g.pillar_id=ps.value||null;
+  const ps=document.getElementById("fGoalPillar"); if(ps) g.pillar_id=ps.value||null;
+  const pp=document.getElementById("fGoalPersp"); if(pp) g.perspective_id=pp.value||null;
+  const gs=document.getElementById("fGoalStart"); if(gs) g.start=gs.value||null;
+  const ge=document.getElementById("fGoalEnd"); if(ge) g.end=ge.value||null;
   closeModal(); renderGoals(); renderStratMap();
   logChange("تعديل","هدف",g.name); dirtySave();
 }
 function saveGoal(parentId,type,subParentId){
   const name=document.getElementById("fGoalName").value.trim(); if(!name) return;
-  const pillarId=document.getElementById("fGoalPillar")?document.getElementById("fGoalPillar").value:null;
+  const pillarId=(document.getElementById("fGoalPillar")||{}).value||null;
+  const perspId=(document.getElementById("fGoalPersp")||{}).value||null;
+  const startV=(document.getElementById("fGoalStart")||{}).value||null;
+  const endV=(document.getElementById("fGoalEnd")||{}).value||null;
   const pid=type==="detailed"?subParentId:parentId;
-  STATE.goals.push({id:uid(),name,type,parent_id:pid||null,pillar_id:pillarId||null,kpis:[]});
+  STATE.goals.push({id:uid(),name,type,parent_id:pid||null,pillar_id:pillarId||null,perspective_id:perspId||null,start:startV,end:endV,kpis:[]});
   closeModal(); renderGoals(); renderStratMap(); updateKPIs(); updateTabBadges();
   logChange("إضافة","هدف",name); dirtySave();
 }
@@ -839,6 +884,7 @@ function showAddKpi(scope,parentId){
         <div class="fl"><label>الفعلي</label><input id="fKpiActual" type="number" value="0"></div>
       </div>
       <div class="fl"><label>الوحدة</label><input id="fKpiUnit" value="%" placeholder="%، ريال، مشروع…"></div>
+      ${ADMIN_MODE?_kpiExtFields(null):""}
       <div class="faprow">
         <button class="ebtn primary" onclick="saveKpi('${scope}','${parentId}')" type="button">إضافة</button>
         <button class="ebtn" onclick="closeModal()" type="button">إلغاء</button>
@@ -856,7 +902,12 @@ function addKpiFromLib(scope,parentId,libId){
 }
 function saveKpi(scope,parentId){
   const name=document.getElementById("fKpiName").value.trim(); if(!name) return;
-  const kpi={id:uid(),name,target:document.getElementById("fKpiTarget").value,actual:document.getElementById("fKpiActual").value,unit:document.getElementById("fKpiUnit").value.trim()};
+  const kpi={id:uid(),name,
+    target:(document.getElementById("fKpiTarget")||{}).value||"100",
+    actual:(document.getElementById("fKpiActual")||{}).value||"0",
+    unit:(document.getElementById("fKpiUnit")||{}).value?.trim()||"%",
+    ...(ADMIN_MODE?_collectKpiExt():{})
+  };
   _addKpiToParent(scope,parentId,kpi);
   closeModal(); renderAll(); updateKPIs();
   logChange("إضافة","مؤشر KPI",name); dirtySave();
@@ -929,12 +980,20 @@ function delFromLibrary(id){
    INITIATIVE CRUD
    ============================================================ */
 function initiativeForm(ini){
+  const userOpts=(SESSION&&SESSION._users||[]).map(u=>`<option value="${esc(u.username)}"${ini&&ini.kpi_owner===u.username?" selected":""}>${esc(u.username)}</option>`).join("");
+  const ownerRow=ADMIN_MODE?`
+    <div class="fl"><label>رقم المبادرة</label><input id="fIniNum" value="${esc(ini?ini.num||"":"")}"></div>
+    <div class="fl"><label>وصف المبادرة</label><textarea id="fIniDesc" rows="2">${esc(ini?ini.desc||"":"")}</textarea></div>`:"";
+  const isOwner=SESSION&&ini&&SESSION.username===ini.owner;
+  const notesRow=(ADMIN_MODE||isOwner)?`<div class="fl"><label>ملاحظات عامة</label><textarea id="fIniNotes" rows="2">${esc(ini?ini.notes||"":"")}</textarea></div>`:"";
   return `<div class="eform">
     <div class="fl"><label>اسم المبادرة</label><input id="fIniName" value="${esc(ini?ini.name:"")}"></div>
-    <div class="fl"><label>المسؤول / قائد المبادرة</label><input id="fIniOwner" value="${esc(ini?ini.owner:"")}"></div>
+    <div class="fl"><label>المسؤول / قائد المبادرة</label><input id="fIniOwner" value="${esc(ini?ini.owner||"":"")}"></div>
+    ${ownerRow}
+    ${notesRow}
     <div class="frow">
-      <div class="fl"><label>تاريخ البدء</label><input id="fIniStart" type="date" value="${esc(ini?ini.start:"")}"></div>
-      <div class="fl"><label>تاريخ الانتهاء</label><input id="fIniEnd" type="date" value="${esc(ini?ini.end:"")}"></div>
+      <div class="fl"><label>تاريخ البدء</label><input id="fIniStart" type="date" value="${esc(ini?ini.start||"":"")}"></div>
+      <div class="fl"><label>تاريخ الانتهاء</label><input id="fIniEnd" type="date" value="${esc(ini?ini.end||"":"")}"></div>
     </div>
     <div class="fl"><label>نسبة الإنجاز (٪)</label><input id="fIniPct" type="number" min="0" max="100" value="${ini?+ini.pct||0:0}"></div>
   </div>`;
@@ -949,9 +1008,17 @@ function editInitiative(id){
 }
 function saveInitiative(id){
   const name=document.getElementById("fIniName").value.trim(); if(!name) return;
-  const data={name,owner:document.getElementById("fIniOwner").value.trim(),start:document.getElementById("fIniStart").value,end:document.getElementById("fIniEnd").value,pct:Math.min(100,Math.max(0,+document.getElementById("fIniPct").value||0))};
+  const data={name,owner:(document.getElementById("fIniOwner")||{}).value?.trim()||"",
+    start:(document.getElementById("fIniStart")||{}).value||"",
+    end:(document.getElementById("fIniEnd")||{}).value||"",
+    pct:Math.min(100,Math.max(0,+((document.getElementById("fIniPct")||{}).value)||0))};
+  if(ADMIN_MODE){
+    data.num=(document.getElementById("fIniNum")||{}).value?.trim()||"";
+    data.desc=(document.getElementById("fIniDesc")||{}).value?.trim()||"";
+  }
+  if(document.getElementById("fIniNotes")) data.notes=document.getElementById("fIniNotes").value.trim();
   if(id){ const ini=STATE.initiatives.find(x=>x.id===id); if(ini) Object.assign(ini,data); }
-  else STATE.initiatives.push({id:uid(),...data,kpis:[]});
+  else STATE.initiatives.push({id:uid(),...data,kpis:[],milestones:[],linked_projects:[]});
   closeModal(); renderInitiatives(); renderPortfolios(); updateKPIs(); updateTabBadges();
   logChange(id?"تعديل":"إضافة","مبادرة",name); dirtySave();
 }
@@ -965,19 +1032,79 @@ function delInitiative(id){
 }
 function showInitiativeDetail(initId){
   const ini=STATE.initiatives.find(x=>x.id===initId); if(!ini) return;
+  _renderIniModal(ini);
+}
+
+function _renderIniModal(ini){
   const pct=+ini.pct||0;
   const st=calcStatus(pct,ini.end);
-  const linkedPfs=STATE.portfolios.filter(pf=>(pf.initiative_ids||[]).includes(initId));
-  openModal(`مبادرة: ${esc(ini.name)}`,`
-    <div style="text-align:center;margin-bottom:14px">
-      ${svgGauge(pct,180,105)}
-      <div style="margin-top:8px">${statusPill(st)}</div>
+  const linkedPfs=STATE.portfolios.filter(pf=>(pf.initiative_ids||[]).includes(ini.id));
+  const isOwner=SESSION&&SESSION.username===ini.owner;
+  const canEdit=ADMIN_MODE||isOwner;
+
+  // Milestones section
+  const mss=(ini.milestones||[]);
+  const totalMs=mss.length;
+  const doneMs=mss.filter(m=>+m.pct>=100).length;
+  const msHTML=mss.length?mss.map((m,mi)=>{
+    const mc=kpiHex(+m.pct||0);
+    const types=(m.type_ids||[]).map(tid=>{const t=STATE.milestone_types.find(x=>x.id===tid);return t?`<span class="ms-type-chip">${esc(t.name)}</span>`:""}).join("");
+    return `<div class="ms-row" id="msr-${m.id}">
+      <div class="ms-num">${toAr(mi+1)}</div>
+      <div class="ms-body">
+        <div class="ms-name">${esc(m.name)}${types?`<span style="margin-right:8px">${types}</span>`:""}</div>
+        ${m.start||m.end?`<div class="ms-dates">${m.start?fmtDate(m.start):""}${m.end?" ← "+fmtDate(m.end):""}</div>`:""}
+        <div class="ms-bar-wrap"><div class="ms-bar"><div class="ms-fill" style="width:${+m.pct||0}%;background:${mc}"></div></div><span class="ms-pct" style="color:${mc}">${toAr(+m.pct||0)}%</span></div>
+        ${m.notes?`<div class="ms-notes">${esc(m.notes)}</div>`:""}
+      </div>
+      ${canEdit?`<div class="ms-acts">
+        ${mi>0?`<button class="ebtn sm" onclick="moveMilestone('${ini.id}','${m.id}',-1)" type="button">↑</button>`:""}
+        ${mi<mss.length-1?`<button class="ebtn sm" onclick="moveMilestone('${ini.id}','${m.id}',1)" type="button">↓</button>`:""}
+        <button class="ebtn sm" onclick="editMilestone('${ini.id}','${m.id}')" type="button">تعديل</button>
+        <button class="ebtn sm danger" onclick="delMilestone('${ini.id}','${m.id}')" type="button">حذف</button>
+      </div>`:""}
+    </div>`;
+  }).join(""):`<div style="color:#aab5c4;font-size:12.5px;padding:8px 0;font-style:italic">لا توجد معالم بعد</div>`;
+
+  // Linked projects
+  const lps=(ini.linked_projects||[]);
+  const lpHTML=lps.length?lps.map(lp=>`<div class="lp-row">
+    <span class="lp-name">${esc(lp.name)}</span>
+    ${lp.url?`<a href="${esc(lp.url)}" target="_blank" class="ebtn sm teal" style="text-decoration:none">فتح الرابط</a>`:""}
+    ${canEdit?`<button class="ebtn sm danger" onclick="delLinkedProject('${ini.id}','${lp.id}')" type="button">حذف</button>`:""}
+  </div>`).join(""):`<div style="color:#aab5c4;font-size:12px;font-style:italic">لا توجد مشاريع مرتبطة</div>`;
+
+  openModal(`${ini.num?`<span style="font-size:13px;color:var(--teal);font-weight:600">${esc(ini.num)}</span> — `:""} ${esc(ini.name)}`,`
+    <div style="text-align:center;margin-bottom:10px">
+      ${svgGauge(pct,160,92)}
+      <div style="margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px">${statusPill(st)}${totalMs?`<span style="font-size:12px;color:var(--muted)">المعالم: ${toAr(doneMs)}/${toAr(totalMs)}</span>`:""}</div>
     </div>
-    ${ini.owner?`<div style="font-size:13px;color:var(--muted);margin-bottom:8px">المسؤول: <b style="color:var(--navy)">${esc(ini.owner)}</b></div>`:""}
-    ${ini.start||ini.end?`<div style="font-size:13px;color:var(--muted);margin-bottom:10px">${ini.start?`من ${fmtDate(ini.start)}`:""}${ini.end?` إلى ${fmtDate(ini.end)}`:""}</div>`:""}
-    ${linkedPfs.length?`<div style="margin-bottom:12px"><div style="font-size:12px;font-weight:700;color:var(--muted);margin-bottom:6px">المحافظ المرتبطة:</div><div style="display:flex;flex-wrap:wrap;gap:6px">${linkedPfs.map(pf=>`<span style="font-size:12px;background:rgba(13,59,107,.08);color:var(--navy);padding:3px 10px;border-radius:99px">${esc(pf.name)}</span>`).join("")}</div></div>`:""}
-    <div class="kpi-sec-head"><span>مؤشرات الأداء (KPIs)</span>${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddKpi('init','${initId}')" type="button">+ مؤشر</button>`:""}</div>
-    ${kpiTable(ini.kpis,initId,ADMIN_MODE)||`<div style="color:#aab5c4;font-size:12px">لا توجد مؤشرات</div>`}
+    ${ini.desc?`<div class="ini-desc">${esc(ini.desc)}</div>`:""}
+    ${ini.owner?`<div style="font-size:13px;color:var(--muted);margin-bottom:4px">المسؤول: <b style="color:var(--navy)">${esc(ini.owner)}</b></div>`:""}
+    ${ini.start||ini.end?`<div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">${ini.start?`من ${fmtDate(ini.start)}`:""}${ini.end?` إلى ${fmtDate(ini.end)}`:""}</div>`:""}
+    ${linkedPfs.length?`<div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:5px">${linkedPfs.map(pf=>`<span style="font-size:11.5px;background:rgba(13,59,107,.08);color:var(--navy);padding:2px 9px;border-radius:99px">${esc(pf.name)}</span>`).join("")}</div>`:""}
+
+    <div class="ini-sec-head">
+      <span>المعالم (${toAr(mss.length)})</span>
+      ${canEdit?`<button class="ebtn sm" onclick="showAddMilestone('${ini.id}')" type="button">+ معلم</button>`:""}
+    </div>
+    <div id="msListWrap-${ini.id}">${msHTML}</div>
+
+    <div class="ini-sec-head" style="margin-top:14px">
+      <span>المشاريع المرتبطة</span>
+      ${canEdit?`<button class="ebtn sm" onclick="showAddLinkedProject('${ini.id}')" type="button">+ مشروع</button>`:""}
+    </div>
+    ${lpHTML}
+
+    ${ini.notes||canEdit?`
+    <div class="ini-sec-head" style="margin-top:14px"><span>ملاحظات عامة</span>${canEdit?`<button class="ebtn sm" onclick="editIniNotes('${ini.id}')" type="button">تعديل</button>`:""}</div>
+    <div style="font-size:13px;color:var(--ink);background:var(--bg);padding:10px;border-radius:10px;white-space:pre-wrap">${ini.notes?esc(ini.notes):`<span style="color:#aab5c4;font-style:italic">لا توجد ملاحظات</span>`}</div>`:""}
+
+    <div class="kpi-sec-head" style="margin-top:14px">
+      <span>مؤشرات الأداء (KPIs)</span>
+      ${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddKpi('init','${ini.id}')" type="button">+ مؤشر</button>`:""}
+    </div>
+    ${kpiTable(ini.kpis,ini.id,ADMIN_MODE,"init")||`<div style="color:#aab5c4;font-size:12px">لا توجد مؤشرات</div>`}
   `);
 }
 
@@ -1119,6 +1246,379 @@ async function saveUsers(){
   if(res.err){ toast(res.err,"err"); return; }
   if(SESSION) SESSION._users=res.users||[];
   closeModal(); logChange("تعديل","المستخدمين","تم تحديث قائمة المستخدمين"); dirtySave(); toast("تم حفظ المستخدمين ✓");
+}
+
+/* ============================================================
+   PERSPECTIVES CRUD (BSC مناظير)
+   ============================================================ */
+function showPerspectivesAdmin(){
+  openModal("إدارة مناظير BSC",`
+    <div id="perspList"></div>
+    <hr class="modal-divider">
+    <div class="eform">
+      <div class="frow">
+        <div class="fl"><label>اسم المنظور</label><input id="fPerspName" placeholder="مثال: المالي، العملاء…"></div>
+        <div class="fl"><label>اللون (hex)</label><input id="fPerspColor" type="color" value="#179C7C" style="height:40px;padding:4px"></div>
+      </div>
+      <div class="faprow"><button class="ebtn primary" onclick="addPerspective()" type="button">إضافة</button></div>
+    </div>`);
+  renderPerspList();
+}
+function renderPerspList(){
+  const el=document.getElementById("perspList"); if(!el) return;
+  el.innerHTML=STATE.perspectives.length?STATE.perspectives.map(p=>`
+    <div class="lib-item">
+      <span class="persp-badge" style="background:${p.color||"var(--teal)"}20;color:${p.color||"var(--teal)"};border:1px solid ${p.color||"var(--teal)"}40">${esc(p.name)}</span>
+      <button class="ebtn sm danger" onclick="delPerspective('${p.id}')" type="button">حذف</button>
+    </div>`).join(""):`<div style="color:#aab5c4;font-size:13px;padding:6px 0;font-style:italic">لا توجد مناظير — أضف مناظير BSC</div>`;
+}
+function addPerspective(){
+  const name=document.getElementById("fPerspName").value.trim(); if(!name) return;
+  const color=document.getElementById("fPerspColor").value||"#179C7C";
+  STATE.perspectives.push({id:uid(),name,color});
+  document.getElementById("fPerspName").value="";
+  renderPerspList(); logChange("إضافة","منظور BSC",name); dirtySave();
+  toast("تمت إضافة المنظور ✓");
+}
+function delPerspective(id){
+  const p=STATE.perspectives.find(x=>x.id===id);
+  STATE.perspectives=STATE.perspectives.filter(x=>x.id!==id);
+  renderPerspList(); logChange("حذف","منظور BSC",p?p.name:""); dirtySave();
+}
+
+/* ============================================================
+   MILESTONE TYPES ADMIN
+   ============================================================ */
+function showMilestoneTypesAdmin(){
+  openModal("إدارة أنواع المعالم",`
+    <div id="msTypeList"></div>
+    <hr class="modal-divider">
+    <div class="eform">
+      <div class="fl"><label>نوع المعلم</label><input id="fMsTypeName" placeholder="مثال: تنفيذ داخلي، عرض للقيادة…"></div>
+      <div class="faprow"><button class="ebtn primary" onclick="addMsType()" type="button">إضافة</button></div>
+    </div>`);
+  renderMsTypeList();
+}
+function renderMsTypeList(){
+  const el=document.getElementById("msTypeList"); if(!el) return;
+  el.innerHTML=STATE.milestone_types.length?STATE.milestone_types.map(t=>`
+    <div class="lib-item">
+      <span class="li-name">${esc(t.name)}</span>
+      <button class="ebtn sm danger" onclick="delMsType('${t.id}')" type="button">حذف</button>
+    </div>`).join(""):`<div style="color:#aab5c4;font-size:13px;padding:6px 0;font-style:italic">لا توجد أنواع بعد</div>`;
+}
+function addMsType(){
+  const name=document.getElementById("fMsTypeName").value.trim(); if(!name) return;
+  STATE.milestone_types.push({id:uid(),name});
+  document.getElementById("fMsTypeName").value="";
+  renderMsTypeList(); logChange("إضافة","نوع معلم",name); dirtySave(); toast("تمت إضافة النوع ✓");
+}
+function delMsType(id){
+  const t=STATE.milestone_types.find(x=>x.id===id);
+  STATE.milestone_types=STATE.milestone_types.filter(x=>x.id!==id);
+  renderMsTypeList(); logChange("حذف","نوع معلم",t?t.name:""); dirtySave();
+}
+
+/* ============================================================
+   KPI OPTIONS ADMIN
+   ============================================================ */
+function showKpiOptionsAdmin(){
+  const categories=[
+    {key:"polarities",label:"القطبية",ex:"إيجابي، سلبي"},
+    {key:"cumulatives",label:"التراكمية",ex:"تراكمي، غير تراكمي"},
+    {key:"frequencies",label:"تكرار القياس",ex:"ربعي، شهري، سنوي"},
+    {key:"departments",label:"الإدارات المالكة",ex:"الإدارة المالية…"},
+    {key:"data_sources",label:"مصادر البيانات",ex:"المالية والمشتريات…"},
+  ];
+  openModal("إدارة خيارات مؤشرات الأداء",`
+    <div class="kpi-opts-wrap">
+      ${categories.map(c=>`
+        <div class="kpi-opt-group">
+          <div class="koi-label">${esc(c.label)}</div>
+          <div id="koList_${c.key}"></div>
+          <div class="frow" style="margin-top:6px">
+            <input class="koi-inp" id="koInp_${c.key}" placeholder="${esc(c.ex)}">
+            <button class="ebtn sm" onclick="addKpiOpt('${c.key}')" type="button">+</button>
+          </div>
+        </div>`).join("")}
+    </div>`);
+  categories.forEach(c=>renderKoList(c.key));
+}
+function renderKoList(key){
+  const el=document.getElementById("koList_"+key); if(!el) return;
+  const items=(STATE.kpi_options[key]||[]);
+  el.innerHTML=items.length?items.map(v=>`
+    <div class="lib-item" style="padding:4px 8px">
+      <span class="li-name">${esc(v)}</span>
+      <button class="ebtn sm danger" onclick="delKpiOpt('${key}','${esc(v)}')" type="button">×</button>
+    </div>`).join(""):`<div style="color:#aab5c4;font-size:12px">— فارغ</div>`;
+}
+function addKpiOpt(key){
+  const inp=document.getElementById("koInp_"+key); if(!inp) return;
+  const val=inp.value.trim(); if(!val) return;
+  if(!STATE.kpi_options[key]) STATE.kpi_options[key]=[];
+  if(!STATE.kpi_options[key].includes(val)) STATE.kpi_options[key].push(val);
+  inp.value="";
+  renderKoList(key); dirtySave();
+}
+function delKpiOpt(key,val){
+  if(!STATE.kpi_options[key]) return;
+  STATE.kpi_options[key]=STATE.kpi_options[key].filter(v=>v!==val);
+  renderKoList(key); dirtySave();
+}
+
+/* ============================================================
+   ADMIN SETTINGS MODAL
+   ============================================================ */
+function showAdminSettings(){
+  openModal("إعدادات النظام",`
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="ebtn" onclick="showPerspectivesAdmin()" type="button" style="justify-content:flex-start">مناظير BSC — قائمة المناظير</button>
+      <button class="ebtn" onclick="showMilestoneTypesAdmin()" type="button" style="justify-content:flex-start">أنواع المعالم — قائمة الأنواع</button>
+      <button class="ebtn" onclick="showKpiOptionsAdmin()" type="button" style="justify-content:flex-start">خيارات مؤشرات الأداء</button>
+      <button class="ebtn" onclick="showPendingReports()" type="button" style="justify-content:flex-start">تقارير القياس المعلّقة <span class="badge" style="background:var(--kpi-r);color:#fff;margin-right:6px">${toAr((STATE.kpi_reports||[]).filter(r=>r.status==="pending").length)}</span></button>
+    </div>`);
+}
+
+/* ============================================================
+   MILESTONES CRUD
+   ============================================================ */
+function _msForm(m){
+  const typeChecks=STATE.milestone_types.map(t=>{
+    const sel=m&&(m.type_ids||[]).includes(t.id);
+    return `<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
+      <input type="checkbox" name="msType" value="${t.id}" ${sel?"checked":""} style="accent-color:var(--teal)">${esc(t.name)}</label>`;
+  }).join("");
+  return `<div class="eform">
+    <div class="fl"><label>اسم المعلم</label><input id="fMsName" value="${esc(m?m.name:"")}"></div>
+    ${typeChecks?`<div class="fl"><label>نوع المعلم</label><div style="display:flex;flex-wrap:wrap;gap:8px">${typeChecks}</div></div>`:""}
+    <div class="frow">
+      <div class="fl"><label>تاريخ البدء</label><input id="fMsStart" type="date" value="${esc(m?m.start||"":"")}"></div>
+      <div class="fl"><label>تاريخ الانتهاء</label><input id="fMsEnd" type="date" value="${esc(m?m.end||"":"")}"></div>
+    </div>
+    <div class="fl"><label>نسبة الإنجاز (%)</label><input id="fMsPct" type="number" min="0" max="100" value="${m?+m.pct||0:0}"></div>
+    <div class="fl"><label>ملاحظات</label><textarea id="fMsNotes" rows="2">${esc(m?m.notes||"":"")}</textarea></div>
+  </div>`;
+}
+function showAddMilestone(iniId){
+  openModal("إضافة معلم",`${_msForm(null)}<div class="faprow"><button class="ebtn primary" onclick="saveMilestone('${iniId}',null)" type="button">إضافة</button><button class="ebtn" onclick="showInitiativeDetail('${iniId}')" type="button">إلغاء</button></div>`);
+  setTimeout(()=>document.getElementById("fMsName").focus(),50);
+}
+function editMilestone(iniId,msId){
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  const m=(ini.milestones||[]).find(x=>x.id===msId); if(!m) return;
+  openModal("تعديل المعلم",`${_msForm(m)}<div class="faprow"><button class="ebtn primary" onclick="saveMilestone('${iniId}','${msId}')" type="button">حفظ</button><button class="ebtn" onclick="showInitiativeDetail('${iniId}')" type="button">إلغاء</button></div>`);
+}
+function saveMilestone(iniId,msId){
+  const name=document.getElementById("fMsName").value.trim(); if(!name) return;
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  if(!ini.milestones) ini.milestones=[];
+  const typeIds=Array.from(document.querySelectorAll('input[name="msType"]:checked')).map(c=>c.value);
+  const data={name,type_ids:typeIds,
+    start:(document.getElementById("fMsStart")||{}).value||"",
+    end:(document.getElementById("fMsEnd")||{}).value||"",
+    pct:Math.min(100,Math.max(0,+(document.getElementById("fMsPct")||{}).value||0)),
+    notes:(document.getElementById("fMsNotes")||{}).value?.trim()||""};
+  if(msId){ const m=ini.milestones.find(x=>x.id===msId); if(m) Object.assign(m,data); }
+  else ini.milestones.push({id:uid(),...data});
+  logChange(msId?"تعديل":"إضافة","معلم",name); dirtySave();
+  _renderIniModal(ini);
+}
+function delMilestone(iniId,msId){
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  const m=(ini.milestones||[]).find(x=>x.id===msId);
+  ini.milestones=(ini.milestones||[]).filter(x=>x.id!==msId);
+  logChange("حذف","معلم",m?m.name:""); dirtySave();
+  _renderIniModal(ini);
+}
+function moveMilestone(iniId,msId,dir){
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  const ms=ini.milestones||[];
+  const i=ms.findIndex(x=>x.id===msId); if(i<0) return;
+  const j=i+dir; if(j<0||j>=ms.length) return;
+  [ms[i],ms[j]]=[ms[j],ms[i]];
+  dirtySave(); _renderIniModal(ini);
+}
+
+/* ============================================================
+   LINKED PROJECTS
+   ============================================================ */
+function showAddLinkedProject(iniId){
+  openModal("إضافة مشروع مرتبط",`<div class="eform">
+    <div class="fl"><label>اسم المشروع</label><input id="fLpName" placeholder="اسم المشروع أو البرنامج…"></div>
+    <div class="fl"><label>الرابط (اختياري)</label><input id="fLpUrl" type="url" placeholder="https://…"></div>
+    <div class="faprow">
+      <button class="ebtn primary" onclick="saveLinkedProject('${iniId}')" type="button">إضافة</button>
+      <button class="ebtn" onclick="showInitiativeDetail('${iniId}')" type="button">إلغاء</button>
+    </div>
+  </div>`);
+  setTimeout(()=>document.getElementById("fLpName").focus(),50);
+}
+function saveLinkedProject(iniId){
+  const name=document.getElementById("fLpName").value.trim(); if(!name) return;
+  const url=(document.getElementById("fLpUrl")||{}).value?.trim()||"";
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  if(!ini.linked_projects) ini.linked_projects=[];
+  ini.linked_projects.push({id:uid(),name,url});
+  logChange("إضافة","مشروع مرتبط",name); dirtySave(); _renderIniModal(ini);
+}
+function delLinkedProject(iniId,lpId){
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  const lp=(ini.linked_projects||[]).find(x=>x.id===lpId);
+  ini.linked_projects=(ini.linked_projects||[]).filter(x=>x.id!==lpId);
+  logChange("حذف","مشروع مرتبط",lp?lp.name:""); dirtySave(); _renderIniModal(ini);
+}
+
+/* ============================================================
+   INITIATIVE NOTES EDIT
+   ============================================================ */
+function editIniNotes(iniId){
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  openModal("تعديل الملاحظات",`<div class="eform">
+    <div class="fl"><label>ملاحظات عامة</label><textarea id="fIniNotesEdit" rows="5" style="min-height:120px">${esc(ini.notes||"")}</textarea></div>
+    <div class="faprow">
+      <button class="ebtn primary" onclick="saveIniNotes('${iniId}')" type="button">حفظ</button>
+      <button class="ebtn" onclick="showInitiativeDetail('${iniId}')" type="button">إلغاء</button>
+    </div>
+  </div>`);
+  setTimeout(()=>document.getElementById("fIniNotesEdit").focus(),50);
+}
+function saveIniNotes(iniId){
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  ini.notes=document.getElementById("fIniNotesEdit").value.trim();
+  logChange("تعديل","ملاحظات مبادرة",ini.name); dirtySave(); _renderIniModal(ini);
+}
+
+/* ============================================================
+   KPI EXTENDED FORM
+   ============================================================ */
+function _kpiExtFields(k){
+  const opts=STATE.kpi_options;
+  const sel=(arr,id,val)=>arr.map(v=>`<option value="${esc(v)}"${(k&&k[id]===v)?" selected":""}>${esc(v)}</option>`).join("");
+  return `
+    <hr class="modal-divider">
+    <div style="font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:8px">معلومات إضافية (اختياري)</div>
+    <div class="frow">
+      <div class="fl"><label>رمز المؤشر</label><input id="fKpiCode" value="${esc(k?k.code||"":"")}"></div>
+      <div class="fl"><label>الإدارة المالكة</label>${opts.departments.length?`<select id="fKpiDept"><option value="">—</option>${sel(opts.departments,"dept",k?k.dept:"")}</select>`:`<input id="fKpiDept" value="${esc(k?k.dept||"":"")}">` }</div>
+    </div>
+    <div class="frow">
+      <div class="fl"><label>القطبية</label>${opts.polarities.length?`<select id="fKpiPol"><option value="">—</option>${sel(opts.polarities,"polarity",k?k.polarity:"")}</select>`:`<input id="fKpiPol" value="${esc(k?k.polarity||""||"":"")}">` }</div>
+      <div class="fl"><label>التراكمية</label>${opts.cumulatives.length?`<select id="fKpiCum"><option value="">—</option>${sel(opts.cumulatives,"cumulative",k?k.cumulative:"")}</select>`:`<input id="fKpiCum" value="${esc(k?k.cumulative||"":"")}">` }</div>
+    </div>
+    <div class="frow">
+      <div class="fl"><label>تكرار القياس</label>${opts.frequencies.length?`<select id="fKpiFreq"><option value="">—</option>${sel(opts.frequencies,"frequency",k?k.frequency:"")}</select>`:`<input id="fKpiFreq" value="${esc(k?k.frequency||"":"")}">` }</div>
+      <div class="fl"><label>مصدر البيانات</label>${opts.data_sources.length?`<select id="fKpiSrc"><option value="">—</option>${sel(opts.data_sources,"data_source",k?k.data_source:"")}</select>`:`<input id="fKpiSrc" value="${esc(k?k.data_source||"":"")}">` }</div>
+    </div>
+    <div class="frow">
+      <div class="fl"><label>قيمة خط الأساس</label><input id="fKpiBase" type="number" value="${esc(k?k.baseline_val||"":"")}"></div>
+      <div class="fl"><label>سنة خط الأساس</label><input id="fKpiBaseY" value="${esc(k?k.baseline_year||"":"")}"></div>
+    </div>
+    <div class="fl"><label>معادلة القياس</label><input id="fKpiFormula" value="${esc(k?k.formula||""||"":"")}"></div>
+    <div class="fl"><label>موعد توفر البيانات</label><input id="fKpiAvail" value="${esc(k?k.data_avail||"":"")}"></div>
+    ${SESSION&&SESSION._users&&SESSION._users.length?`<div class="fl"><label>مالك المؤشر</label><select id="fKpiOwner"><option value="">— غير محدد —</option>${(SESSION._users||[]).map(u=>`<option value="${esc(u.username)}"${k&&k.kpi_owner===u.username?" selected":""}>${esc(u.username)}</option>`).join("")}</select></div>`:""}`;
+}
+
+function _collectKpiExt(){
+  const v=id=>(document.getElementById(id)||{}).value||"";
+  return {
+    code:v("fKpiCode"),polarity:v("fKpiPol"),cumulative:v("fKpiCum"),
+    frequency:v("fKpiFreq"),dept:v("fKpiDept"),data_source:v("fKpiSrc"),
+    baseline_val:v("fKpiBase"),baseline_year:v("fKpiBaseY"),
+    formula:v("fKpiFormula"),data_avail:v("fKpiAvail"),kpi_owner:v("fKpiOwner")
+  };
+}
+
+/* ============================================================
+   MEASUREMENT REPORTS
+   ============================================================ */
+function showSubmitMeasurement(scope,parentId,kpiId){
+  const kpi=_findKpi(scope,parentId,kpiId); if(!kpi) return;
+  openModal(`رفع تقرير قياس — ${esc(kpi.name)}`,`
+    <div style="font-size:12.5px;color:var(--muted);margin-bottom:10px">المستهدف: <b>${esc(kpi.target)} ${esc(kpi.unit||"")}</b></div>
+    <div class="eform">
+      <div class="fl"><label>القيمة الفعلية المتحققة</label><input id="fRptActual" type="number" value="${esc(kpi.actual||0)}"></div>
+      <div class="fl"><label>ملاحظات التقرير</label><textarea id="fRptNotes" rows="3"></textarea></div>
+      <div class="fl"><label>ملف مرفق (اختياري)</label>
+        <input type="file" id="fRptFile" style="font-family:inherit;font-size:13px">
+      </div>
+      <div class="faprow">
+        <button class="ebtn primary" onclick="submitMeasurementReport('${scope}','${parentId}','${kpiId}')" type="button">رفع التقرير للمراجعة</button>
+        <button class="ebtn" onclick="closeModal()" type="button">إلغاء</button>
+      </div>
+    </div>`);
+}
+function _findKpi(scope,parentId,kpiId){
+  if(scope==="goal"){ const g=STATE.goals.find(x=>x.id===parentId); return g&&(g.kpis||[]).find(k=>k.id===kpiId); }
+  if(scope==="init"){ const i=STATE.initiatives.find(x=>x.id===parentId); return i&&(i.kpis||[]).find(k=>k.id===kpiId); }
+  if(scope==="oper"){ const o=STATE.oper_goals.find(x=>x.id===parentId); return o&&(o.kpis||[]).find(k=>k.id===kpiId); }
+  return null;
+}
+async function submitMeasurementReport(scope,parentId,kpiId){
+  const actual=(document.getElementById("fRptActual")||{}).value||"0";
+  const notes=(document.getElementById("fRptNotes")||{}).value?.trim()||"";
+  const fileEl=document.getElementById("fRptFile");
+  let file_url="",file_name="";
+  if(fileEl&&fileEl.files&&fileEl.files[0]){
+    const f=fileEl.files[0];
+    const b64=await new Promise(res=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.readAsDataURL(f);});
+    const up=await apiPost({action:"upload",username:SESSION.username,password:SESSION.password,file_data:b64,file_name:f.name});
+    if(up&&up.url){ file_url=up.url; file_name=up.name||f.name; }
+  }
+  if(!STATE.kpi_reports) STATE.kpi_reports=[];
+  STATE.kpi_reports.push({
+    id:uid(),scope,parent_id:parentId,kpi_id:kpiId,
+    actual,notes,file_url,file_name,
+    submitted_by:SESSION.username,submitted_at:new Date().toISOString(),
+    status:"pending",reviewed_by:"",reviewed_at:"",review_notes:""
+  });
+  logChange("رفع","تقرير قياس",_findKpi(scope,parentId,kpiId)?.name||""); dirtySave();
+  closeModal(); toast("تم رفع التقرير — في انتظار الموافقة");
+}
+function showPendingReports(){
+  const pending=(STATE.kpi_reports||[]).filter(r=>r.status==="pending");
+  const all=(STATE.kpi_reports||[]);
+  const rows=all.length?all.map(r=>{
+    const kpi=_findKpi(r.scope,r.parent_id,r.kpi_id);
+    const d=new Date(r.submitted_at);
+    const ds=d.toLocaleDateString("ar-SA",{year:"numeric",month:"short",day:"numeric"})+" "+d.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
+    const statusMap={pending:"معلّق",approved:"موافق",returned:"مُرجَع",rejected:"مرفوض"};
+    const statusCol={pending:"var(--gold)",approved:"var(--kpi-g)",returned:"var(--teal)",rejected:"var(--kpi-r)"};
+    const sc=statusCol[r.status]||"var(--muted)";
+    return `<div class="rpt-row">
+      <div class="rpt-head">
+        <span class="clog-badge" style="background:${sc}20;color:${sc};border:1px solid ${sc}40">${statusMap[r.status]||r.status}</span>
+        <span class="rpt-kpi">${esc(kpi?kpi.name:"مؤشر محذوف")}</span>
+        <span style="font-size:11.5px;color:var(--muted);margin-right:auto">${esc(r.submitted_by)} · ${ds}</span>
+      </div>
+      <div class="rpt-meta">القيمة المتحققة: <b>${esc(r.actual)} ${esc(kpi?kpi.unit||"":"")} </b>
+        ${r.notes?`· ${esc(r.notes)}`:""}</div>
+      ${r.file_url?`<a href="${esc(r.file_url)}" target="_blank" class="ebtn sm teal" style="text-decoration:none;margin-top:4px;display:inline-flex">الملف المرفق</a>`:""}
+      ${r.review_notes?`<div style="font-size:12px;color:var(--muted);margin-top:4px;font-style:italic">ملاحظة المراجع: ${esc(r.review_notes)}</div>`:""}
+      ${ADMIN_MODE&&r.status==="pending"?`<div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+        <button class="ebtn sm" style="background:var(--kpi-g)20;color:var(--kpi-g);border-color:var(--kpi-g)40" onclick="reviewReport('${r.id}','approved')" type="button">موافقة</button>
+        <button class="ebtn sm" style="background:var(--teal)20;color:var(--teal);border-color:var(--teal)40" onclick="reviewReport('${r.id}','returned')" type="button">إرجاع</button>
+        <button class="ebtn sm danger" onclick="reviewReport('${r.id}','rejected')" type="button">رفض</button>
+      </div>`:""}
+    </div>`;
+  }).join(""):`<div style="color:#aab5c4;font-style:italic;padding:12px 0;text-align:center">لا توجد تقارير</div>`;
+  openModal(`تقارير القياس (${toAr(all.length)}) — معلّق: ${toAr(pending.length)}`,`<div class="rpt-list">${rows}</div>`);
+}
+function reviewReport(rptId,action){
+  let reason="";
+  if(action==="returned"||action==="rejected"){
+    reason=prompt(action==="rejected"?"سبب الرفض:":"ملاحظة الإرجاع:")?.trim()||"";
+  }
+  const rpt=(STATE.kpi_reports||[]).find(r=>r.id===rptId); if(!rpt) return;
+  rpt.status=action; rpt.reviewed_by=SESSION.username;
+  rpt.reviewed_at=new Date().toISOString(); rpt.review_notes=reason;
+  if(action==="approved"){
+    const kpi=_findKpi(rpt.scope,rpt.parent_id,rpt.kpi_id);
+    if(kpi) kpi.actual=rpt.actual;
+  }
+  logChange(action==="approved"?"موافقة":action==="returned"?"إرجاع":"رفض","تقرير قياس","");
+  dirtySave(); renderAll(); updateKPIs(); showPendingReports();
+  toast(action==="approved"?"تمت الموافقة وتحديث المؤشر ✓":action==="returned"?"تم الإرجاع":"تم الرفض");
 }
 
 /* ============================================================

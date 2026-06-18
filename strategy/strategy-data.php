@@ -27,18 +27,22 @@ function readState() {
 
 function defaultState() {
     return [
-        "identity"     => ["vision"=>"","mission"=>"","values"=>[]],
-        "pillars"      => [],
-        "orientations" => [],
-        "goals"        => [],
-        "initiatives"  => [],   // مستقلة — المحافظ ترتبط بها عبر initiative_ids
-        "portfolios"   => [],
-        "exec_plans"   => [],
-        "oper_goals"   => [],
-        "kpi_library"  => [],   // مكتبة مؤشرات الأداء المركزية
-        "change_log"   => [],   // سجل التعديلات
-        "users"        => [],
-        "updated_at"   => null,
+        "identity"        => ["vision"=>"","mission"=>"","values"=>[]],
+        "pillars"         => [],
+        "perspectives"    => [],
+        "orientations"    => [],
+        "goals"           => [],
+        "initiatives"     => [],
+        "portfolios"      => [],
+        "exec_plans"      => [],
+        "oper_goals"      => [],
+        "kpi_library"     => [],
+        "milestone_types" => [],
+        "kpi_options"     => ["polarities"=>[],"cumulatives"=>[],"frequencies"=>[],"departments"=>[],"data_sources"=>[]],
+        "kpi_reports"     => [],
+        "change_log"      => [],
+        "users"           => [],
+        "updated_at"      => null,
     ];
 }
 
@@ -67,18 +71,34 @@ function authenticate($username, $password, $state) {
 
 function publicData($s) {
     return [
-        "identity"     => $s["identity"],
-        "pillars"      => $s["pillars"],
-        "orientations" => $s["orientations"],
-        "goals"        => $s["goals"],
-        "initiatives"  => $s["initiatives"],
-        "portfolios"   => $s["portfolios"],
-        "exec_plans"   => $s["exec_plans"],
-        "oper_goals"   => $s["oper_goals"],
-        "kpi_library"  => $s["kpi_library"],
-        "change_log"   => $s["change_log"],
-        "updated_at"   => $s["updated_at"],
+        "identity"        => $s["identity"],
+        "pillars"         => $s["pillars"],
+        "perspectives"    => $s["perspectives"],
+        "orientations"    => $s["orientations"],
+        "goals"           => $s["goals"],
+        "initiatives"     => $s["initiatives"],
+        "portfolios"      => $s["portfolios"],
+        "exec_plans"      => $s["exec_plans"],
+        "oper_goals"      => $s["oper_goals"],
+        "kpi_library"     => $s["kpi_library"],
+        "milestone_types" => $s["milestone_types"],
+        "kpi_options"     => $s["kpi_options"],
+        "kpi_reports"     => $s["kpi_reports"],
+        "change_log"      => $s["change_log"],
+        "updated_at"      => $s["updated_at"],
     ];
+}
+
+function saveUploadedFile($base64, $filename) {
+    $dir = __DIR__ . "/uploads";
+    if (!is_dir($dir)) @mkdir($dir, 0755, true);
+    $ext  = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $safe = preg_replace('/[^a-zA-Z0-9_\-]/', '_', pathinfo($filename, PATHINFO_FILENAME));
+    $name = $safe . '_' . time() . '.' . $ext;
+    $data = base64_decode(preg_replace('/^data:[^;]+;base64,/', '', $base64));
+    if ($data === false || strlen($data) > 20 * 1024 * 1024) return null;
+    file_put_contents($dir . '/' . $name, $data);
+    return 'strategy/uploads/' . $name;
 }
 
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
@@ -105,8 +125,9 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($action === "save") {
         $sess = authenticate($username, $password, $state);
         if (!$sess) out(["err" => "غير مصرّح"], 403);
-        $fields = ["identity","pillars","orientations","goals","initiatives",
-                   "portfolios","exec_plans","oper_goals","kpi_library","change_log"];
+        $fields = ["identity","pillars","perspectives","orientations","goals","initiatives",
+                   "portfolios","exec_plans","oper_goals","kpi_library","milestone_types",
+                   "kpi_options","kpi_reports","change_log"];
         foreach ($fields as $f) {
             if (array_key_exists($f, $body)) $state[$f] = $body[$f];
         }
@@ -134,6 +155,15 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $res = writeState($state);
         if ($res === false) out(["err" => "تعذّر الحفظ"], 500);
         out(["ok" => true, "users" => $res["users"]]);
+    }
+
+    if ($action === "upload") {
+        $sess = authenticate($username, $password, $state);
+        if (!$sess) out(["err" => "غير مصرّح"], 403);
+        if (empty($body["file_data"]) || empty($body["file_name"])) out(["err" => "بيانات الملف مفقودة"], 400);
+        $url = saveUploadedFile($body["file_data"], $body["file_name"]);
+        if (!$url) out(["err" => "تعذّر رفع الملف"], 500);
+        out(["ok" => true, "url" => $url, "name" => $body["file_name"]]);
     }
 
     out(["err" => "إجراء غير معروف"], 400);

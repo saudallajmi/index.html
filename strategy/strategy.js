@@ -355,28 +355,73 @@ function renderOrientations(){
    ============================================================ */
 function kpiAvg(kpis){
   if(!kpis||!kpis.length) return 0;
+  const totalW=kpis.reduce((s,k)=>s+(+k.weight||0),0);
+  if(totalW>0){
+    return Math.round(kpis.reduce((s,k)=>{
+      const pct=Math.min(100,(+k.actual||0)/(+k.target_annual||+k.target||1)*100);
+      return s+pct*(+k.weight||0)/totalW;
+    },0));
+  }
   return Math.round(kpis.reduce((s,k)=>s+Math.min(100,(+k.actual||0)/(+k.target||1)*100),0)/kpis.length);
+}
+
+function _kpiStatusGov(k){
+  const a=k.actual;
+  if(a===""||a===undefined||a===null) return {label:"لم يبدأ",color:"#8d9bb5"};
+  const pct=Math.min(200,Math.round((+a)/(+k.target_annual||+k.target||1)*100));
+  if(pct>=100) return {label:"مكتمل",color:"#2ECC8F"};
+  if(pct>=85)  return {label:"حسب المخطط",color:"#179C7C"};
+  if(pct>=70)  return {label:"متأخر",color:"#C9A24B"};
+  return {label:"متأخر جداً",color:"#e0824b"};
 }
 
 function kpiTable(kpis,parentId,admin,scope){
   if(!kpis||!kpis.length) return admin?`<div style="color:#aab5c4;font-size:12px;margin-bottom:6px">لا توجد مؤشرات</div>`:"";
   scope=scope||"goal";
-  return `<table class="kpi-tbl"><thead><tr><th>المؤشر</th><th>المستهدف</th><th>الفعلي</th><th>نسبة الإنجاز</th><th></th></tr></thead>
-  <tbody>${kpis.map(k=>{
-    const pct=Math.min(100,Math.round((+k.actual||0)/(+k.target||1)*100));
-    const col=kpiHex(pct);
+  const hasWeights=kpis.some(k=>+k.weight>0);
+  return `<div class="kpi-tbl-wrap"><table class="kpi-tbl kpi-gov"><thead><tr>
+    <th class="kpi-seq-h">#</th>
+    <th>اسم المؤشر</th>
+    ${hasWeights?`<th class="kpi-w-h">الوزن</th>`:""}
+    <th class="kpi-num-h">المستهدف السنوي</th>
+    <th class="kpi-num-h">المستهدف الكلي</th>
+    <th class="kpi-num-h">الفعلي</th>
+    <th class="kpi-pct-h">الإنجاز السنوي %</th>
+    <th class="kpi-pct-h">الإنجاز الكلي %</th>
+    ${hasWeights?`<th class="kpi-w-h">الأداء الموزون</th>`:""}
+    <th>الحالة</th>
+    <th></th>
+  </tr></thead>
+  <tbody>${kpis.map((k,i)=>{
+    const hasVal=k.actual!==undefined&&k.actual!==null&&k.actual!=="";
+    const pctAnnual=hasVal?Math.min(200,Math.round((+k.actual)/(+k.target_annual||+k.target||1)*100)):0;
+    const pctTotal =hasVal?Math.min(200,Math.round((+k.actual)/(+k.target||1)*100)):0;
+    const weightedPerf=hasWeights&&+k.weight>0?Math.round(pctAnnual*(+k.weight)/100):null;
+    const col=kpiHex(Math.min(100,pctAnnual));
+    const st=_kpiStatusGov(k);
     const isOwner=SESSION&&k.kpi_owner&&SESSION.username===k.kpi_owner;
     const hasPending=(STATE.kpi_reports||[]).some(r=>r.kpi_id===k.id&&r.status==="pending");
     return `<tr>
-      <td class="kn">${esc(k.name)}${k.code?`<span style="font-size:10.5px;color:var(--muted);margin-right:4px">${esc(k.code)}</span>`:""}</td>
-      <td style="color:var(--muted)">${esc(k.target)} ${esc(k.unit||"")}</td>
-      <td style="color:${col};font-weight:700">${esc(k.actual)} ${esc(k.unit||"")}</td>
-      <td><div class="kprog"><div class="kbar"><div class="kfill" style="width:${pct}%;background:${col}"></div></div><span style="font-size:12px;font-weight:700;color:${col};min-width:36px">${toAr(pct)}%</span></div></td>
+      <td class="kpi-seq">${toAr(i+1)}</td>
+      <td class="kn">${esc(k.name)}${k.code?`<span class="kpi-code">${esc(k.code)}</span>`:""}</td>
+      ${hasWeights?`<td class="kpi-w">${+k.weight>0?toAr(+k.weight)+"%":"—"}</td>`:""}
+      <td class="kpi-num">${k.target_annual?esc(k.target_annual)+" "+esc(k.unit||""):"—"}</td>
+      <td class="kpi-num">${esc(k.target||"—")} ${k.target?esc(k.unit||""):""}</td>
+      <td class="kpi-num" style="color:${hasVal?col:"var(--muted)"};font-weight:700">${hasVal?esc(k.actual)+" "+esc(k.unit||""):"—"}</td>
+      <td class="kpi-pct">
+        <div class="kprog">
+          <div class="kbar"><div class="kfill" style="width:${Math.min(100,pctAnnual)}%;background:${col}"></div></div>
+          <span style="font-size:12px;font-weight:700;color:${col};min-width:38px">${hasVal?toAr(pctAnnual)+"%":"—"}</span>
+        </div>
+      </td>
+      <td class="kpi-pct"><span style="font-size:12.5px;font-weight:700;color:${col}">${hasVal?toAr(pctTotal)+"%":"—"}</span></td>
+      ${hasWeights?`<td class="kpi-w" style="color:${col};font-weight:700">${weightedPerf!==null?toAr(weightedPerf)+"%":"—"}</td>`:""}
+      <td><span class="kpi-status-pill" style="background:${st.color}22;color:${st.color};border:1px solid ${st.color}44">${st.label}</span></td>
       <td style="white-space:nowrap">
         ${admin?`<button class="ebtn sm danger" onclick="delKpi('${parentId}','${k.id}')" type="button">حذف</button>`:""}
         ${(isOwner||admin)&&SESSION?`<button class="ebtn sm teal" onclick="showSubmitMeasurement('${scope}','${parentId}','${k.id}')" type="button" ${hasPending?"disabled title='يوجد تقرير معلّق'":""}>رفع قياس</button>`:""}
       </td></tr>`;
-  }).join("")}</tbody></table>`;
+  }).join("")}</tbody></table></div>`;
 }
 
 function renderGoals(){
@@ -900,12 +945,16 @@ function showAddKpi(scope,parentId){
   openModal("إضافة مؤشر KPI",`
     ${libHTML}
     <div class="eform">
-      <div class="fl"><label>اسم المؤشر</label><input id="fKpiName" placeholder="مثال: نسبة الرضا"></div>
+      <div class="fl"><label>اسم المؤشر *</label><input id="fKpiName" placeholder="مثال: نسبة الرضا"></div>
       <div class="frow">
-        <div class="fl"><label>المستهدف</label><input id="fKpiTarget" type="number" value="100"></div>
-        <div class="fl"><label>الفعلي</label><input id="fKpiActual" type="number" value="0"></div>
+        <div class="fl"><label>الوحدة</label><input id="fKpiUnit" value="%" placeholder="%، ريال، مشروع…"></div>
+        <div class="fl"><label>الوزن (%)</label><input id="fKpiWeight" type="number" min="0" max="100" value="" placeholder="اختياري"></div>
       </div>
-      <div class="fl"><label>الوحدة</label><input id="fKpiUnit" value="%" placeholder="%، ريال، مشروع…"></div>
+      <div class="frow">
+        <div class="fl"><label>المستهدف السنوي</label><input id="fKpiTargetAnnual" type="number" value="" placeholder="اختياري"></div>
+        <div class="fl"><label>المستهدف الكلي</label><input id="fKpiTarget" type="number" value="100"></div>
+      </div>
+      <div class="fl"><label>الفعلي</label><input id="fKpiActual" type="number" value="0"></div>
       ${ADMIN_MODE?_kpiExtFields(null):""}
       <div class="faprow">
         <button class="ebtn primary" onclick="saveKpi('${scope}','${parentId}')" type="button">إضافة</button>
@@ -924,10 +973,13 @@ function addKpiFromLib(scope,parentId,libId){
 }
 function saveKpi(scope,parentId){
   const name=document.getElementById("fKpiName").value.trim(); if(!name) return;
+  const v=id=>((document.getElementById(id)||{}).value??"").trim();
   const kpi={id:uid(),name,
-    target:(document.getElementById("fKpiTarget")||{}).value||"100",
-    actual:(document.getElementById("fKpiActual")||{}).value||"0",
-    unit:(document.getElementById("fKpiUnit")||{}).value?.trim()||"%",
+    target:v("fKpiTarget")||"100",
+    actual:v("fKpiActual")||"0",
+    unit:v("fKpiUnit")||"%",
+    weight:v("fKpiWeight"),
+    target_annual:v("fKpiTargetAnnual"),
     ...(ADMIN_MODE?_collectKpiExt():{})
   };
   _addKpiToParent(scope,parentId,kpi);
@@ -1678,6 +1730,10 @@ function _kpiExtFields(k){
     <hr class="modal-divider">
     <div style="font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:8px">معلومات إضافية (اختياري)</div>
     <div class="frow">
+      <div class="fl"><label>الوزن (%)</label><input id="fKpiWeight" type="number" min="0" max="100" value="${esc(k?k.weight||"":"")}"></div>
+      <div class="fl"><label>المستهدف السنوي</label><input id="fKpiTargetAnnual" type="number" value="${esc(k?k.target_annual||""||"":"")}"></div>
+    </div>
+    <div class="frow">
       <div class="fl"><label>رمز المؤشر</label><input id="fKpiCode" value="${esc(k?k.code||"":"")}"></div>
       <div class="fl"><label>الإدارة المالكة</label>${opts.departments.length?`<select id="fKpiDept"><option value="">—</option>${sel(opts.departments,"dept",k?k.dept:"")}</select>`:`<input id="fKpiDept" value="${esc(k?k.dept||"":"")}">` }</div>
     </div>
@@ -1699,8 +1755,9 @@ function _kpiExtFields(k){
 }
 
 function _collectKpiExt(){
-  const v=id=>(document.getElementById(id)||{}).value||"";
+  const v=id=>((document.getElementById(id)||{}).value??"");
   return {
+    weight:v("fKpiWeight"),target_annual:v("fKpiTargetAnnual"),
     code:v("fKpiCode"),polarity:v("fKpiPol"),cumulative:v("fKpiCum"),
     frequency:v("fKpiFreq"),dept:v("fKpiDept"),data_source:v("fKpiSrc"),
     baseline_val:v("fKpiBase"),baseline_year:v("fKpiBaseY"),

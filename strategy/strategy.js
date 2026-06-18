@@ -18,7 +18,9 @@ let STATE = {
   kpi_reports:     [],
   change_log:      [],
   updated_at:      null,
+  settings:        { th_complete:100, th_ontrack:85, th_delayed:70 },
 };
+let _iniSel   = null;
 let SESSION   = null;
 let ADMIN_MODE = false;
 const API = "strategy-data.php";
@@ -39,7 +41,8 @@ function dirtySave(){
       portfolios:STATE.portfolios, exec_plans:STATE.exec_plans, oper_goals:STATE.oper_goals,
       kpi_library:STATE.kpi_library, milestone_types:STATE.milestone_types,
       kpi_options:STATE.kpi_options, initiative_options:STATE.initiative_options,
-      kpi_reports:STATE.kpi_reports, change_log:STATE.change_log
+      kpi_reports:STATE.kpi_reports, change_log:STATE.change_log,
+      settings:STATE.settings
     };
     const res=await apiPost(body);
     if(!res||res.err) return;
@@ -79,23 +82,16 @@ function statusPill(st){
   return `<span class="spill ${st||"none"}">${m[st]||"لم يبدأ"}</span>`;
 }
 function calcStatus(pct,end){
-  if(+pct>=100) return "done";
+  if(+pct>=_th().th_complete) return "done";
   if(end && end<todayISO()) return "late";
   if(+pct>0) return "todo";
   return "none";
 }
 
 /* ===== KPI Color Thresholds ===== */
-function kpiColor(pct){
-  if(pct>=99) return "var(--kpi-g)";
-  if(pct>=85) return "var(--kpi-y)";
-  return "var(--kpi-r)";
-}
-function kpiHex(pct){
-  if(pct>=99) return "#2ECC8F";
-  if(pct>=85) return "#C9A24B";
-  return "#e0824b";
-}
+function _th(){ return STATE.settings||{th_complete:100,th_ontrack:85,th_delayed:70}; }
+function kpiColor(pct){ const t=_th(); if(pct>=t.th_complete) return "var(--kpi-g)"; if(pct>=t.th_ontrack) return "var(--kpi-y)"; return "var(--kpi-r)"; }
+function kpiHex(pct){ const t=_th(); if(pct>=t.th_complete) return "#2ECC8F"; if(pct>=t.th_ontrack) return "#C9A24B"; return "#e0824b"; }
 
 /* ===== SVG Gauge ===== */
 function svgGauge(pct, w=160, h=90){
@@ -111,6 +107,58 @@ function svgGauge(pct, w=160, h=90){
     ${pct>0?`<path d="M ${sx} ${cy} A ${r} ${r} 0 0 1 ${px} ${py}" fill="none" stroke="${col}" stroke-width="12" stroke-linecap="round"/>`:""}
     <text x="${cx}" y="${cy+2}" text-anchor="middle" font-size="${Math.round(w/8)}" font-weight="700" fill="${col}" font-family="IBM Plex Sans Arabic,sans-serif">${pct}%</text>
   </svg>`;
+}
+
+/* ===== SVG Radar ===== */
+function svgRadar(kpis, size=140){
+  if(!kpis||kpis.length<3) return "";
+  const cx=size/2, cy=size/2, r=size/2-18;
+  const n=kpis.length;
+  const angle=(i)=>(i/n)*2*Math.PI - Math.PI/2;
+  const pt=(i,frac)=>({
+    x:(cx+frac*r*Math.cos(angle(i))).toFixed(1),
+    y:(cy+frac*r*Math.sin(angle(i))).toFixed(1)
+  });
+  const gridPolys=[0.25,0.5,0.75,1].map(f=>
+    Array.from({length:n},(_,i)=>pt(i,f)).map(p=>`${p.x},${p.y}`).join(" ")
+  );
+  const kpiPts=kpis.map((k,i)=>{
+    const pct=Math.min(100,(+k.actual||0)/(+k.target||1)*100)/100;
+    return pt(i,pct);
+  });
+  const kpiPoly=kpiPts.map(p=>`${p.x},${p.y}`).join(" ");
+  const spokes=Array.from({length:n},(_,i)=>`<line x1="${cx}" y1="${cy}" x2="${pt(i,1).x}" y2="${pt(i,1).y}" stroke="#e8eef5" stroke-width="1"/>`);
+  const avgPct=Math.round(kpis.reduce((s,k)=>s+Math.min(100,(+k.actual||0)/(+k.target||1)*100),0)/n);
+  const rcol=kpiHex(avgPct);
+  return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="display:block;margin:0 auto">
+    ${spokes.join("")}
+    ${gridPolys.map(pts=>`<polygon points="${pts}" fill="none" stroke="#e8eef5" stroke-width="1"/>`).join("")}
+    <polygon points="${kpiPoly}" fill="${rcol}30" stroke="${rcol}" stroke-width="2"/>
+    ${kpiPts.map((p,i)=>{const pct=Math.min(100,Math.round((+kpis[i].actual||0)/(+kpis[i].target||1)*100));return `<circle cx="${p.x}" cy="${p.y}" r="4" fill="${kpiHex(pct)}" stroke="#fff" stroke-width="1.5"/>`; }).join("")}
+  </svg>`;
+}
+
+/* ===== Milestone Gantt ===== */
+function _ganttHTML(milestones){
+  if(!milestones||!milestones.length) return `<div style="color:#aab5c4;font-size:12px;padding:4px 0">لا توجد معالم</div>`;
+  const ts=m=>(m.start&&m.end)?[new Date(m.start).getTime(),new Date(m.end).getTime()]:null;
+  const valid=milestones.filter(m=>ts(m));
+  if(!valid.length) return `<div style="color:#aab5c4;font-size:12px;padding:4px 0">لا تواريخ للمعالم</div>`;
+  const allTs=valid.flatMap(m=>[new Date(m.start).getTime(),new Date(m.end).getTime()]);
+  const minT=Math.min(...allTs), range=Math.max(...allTs)-minT||1;
+  return `<div class="gantt-wrap">${valid.map(m=>{
+    const sT=new Date(m.start).getTime();
+    const eT=new Date(m.end).getTime();
+    const left=((sT-minT)/range*100).toFixed(1);
+    const width=Math.max(2,((eT-sT)/range*100).toFixed(1));
+    const pct=+m.pct||0;
+    const col=kpiHex(pct);
+    return `<div class="gantt-row">
+      <div class="gantt-label" title="${esc(m.name)}">${esc(m.name)}</div>
+      <div class="gantt-track"><div class="gantt-bar" style="right:${left}%;width:${width}%"><div class="gantt-fill" style="width:${pct}%;background:${col}"></div></div></div>
+      <div class="gantt-pct" style="color:${col}">${toAr(pct)}%</div>
+    </div>`;
+  }).join("")}</div>`;
 }
 
 /* ============================================================
@@ -169,6 +217,7 @@ async function init(){
       {classifications:[],exec_types:[],follow_up_tags:[],approval_auths:[],media_coverages:[]},
       data.initiative_options
     );
+    if(data.settings) STATE.settings=Object.assign({th_complete:100,th_ontrack:85,th_delayed:70},data.settings);
 
     // Migrate: old portfolios had nested .initiatives[] — move them top-level
     STATE.portfolios.forEach(pf=>{
@@ -366,12 +415,12 @@ function kpiAvg(kpis){
 }
 
 function _kpiStatusGov(k){
-  const a=k.actual;
+  const a=k.actual; const t=_th();
   if(a===""||a===undefined||a===null) return {label:"لم يبدأ",color:"#8d9bb5"};
   const pct=Math.min(200,Math.round((+a)/(+k.target_annual||+k.target||1)*100));
-  if(pct>=100) return {label:"مكتمل",color:"#2ECC8F"};
-  if(pct>=85)  return {label:"حسب المخطط",color:"#179C7C"};
-  if(pct>=70)  return {label:"متأخر",color:"#C9A24B"};
+  if(pct>=t.th_complete) return {label:"مكتمل",color:"#2ECC8F"};
+  if(pct>=t.th_ontrack)  return {label:"حسب المخطط",color:"#179C7C"};
+  if(pct>=t.th_delayed)  return {label:"متأخر",color:"#C9A24B"};
   return {label:"متأخر جداً",color:"#e0824b"};
 }
 
@@ -461,7 +510,7 @@ function renderGoals(){
       </div>
       <div class="gc-body">
         <div class="gc-bar"><span style="width:${avg}%;background:${col}"></span></div>
-        ${(g.kpis&&g.kpis.length)||ADMIN_MODE?`<div class="kpi-sec-head" style="margin-top:8px"><span>مؤشرات الأداء</span>${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddKpi('goal','${g.id}')" type="button">+ مؤشر</button>`:""}</div>${kpiTable(g.kpis,g.id,ADMIN_MODE)||`<div style="color:#aab5c4;font-size:12px;padding:4px 0">لا توجد مؤشرات</div>`}`:""}
+        ${(g.kpis&&g.kpis.length)||ADMIN_MODE?`<div class="kpi-sec-head" style="margin-top:8px"><span>مؤشرات الأداء</span>${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddKpi('goal','${g.id}')" type="button">+ مؤشر</button>`:""}</div>${kpiTable(g.kpis,g.id,ADMIN_MODE)||`<div style="color:#aab5c4;font-size:12px;padding:4px 0">لا توجد مؤشرات</div>`}${(g.kpis&&g.kpis.length>=3)?`<div style="margin-top:10px;text-align:center">${svgRadar(g.kpis,130)}</div>`:""}`:""}
         ${subs.length?`
         <div style="margin-top:14px">
           <div style="font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:8px">الأهداف الفرعية (التشغيلية):</div>
@@ -512,7 +561,7 @@ function renderInitiatives(){
     const col=kpiHex(pct);
     const linkedPfs=STATE.portfolios.filter(pf=>(pf.initiative_ids||[]).includes(ini.id));
     return `
-    <div class="init-card" onclick="showInitiativeDetail('${ini.id}')">
+    <div class="init-card" id="inic-${ini.id}" onclick="toggleIniExpand('${ini.id}')">
       <div class="init-card-head" style="border-color:${col}">
         <div class="init-card-name">${esc(ini.name)}</div>
         ${statusPill(st)}
@@ -521,12 +570,61 @@ function renderInitiatives(){
       ${ini.owner?`<div style="font-size:12px;color:var(--muted);margin-top:6px">المسؤول: <b style="color:var(--navy)">${esc(ini.owner)}</b></div>`:""}
       ${ini.end?`<div style="font-size:11.5px;color:var(--muted);margin-top:3px">الانتهاء: ${fmtDate(ini.end)}</div>`:""}
       ${linkedPfs.length?`<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px">${linkedPfs.map(pf=>`<span style="font-size:11px;background:rgba(13,59,107,.08);color:var(--navy);padding:2px 8px;border-radius:99px">${esc(pf.name)}</span>`).join("")}</div>`:""}
+      <div class="ini-inline-panel" id="ini-ix-${ini.id}" style="display:none"></div>
       ${ADMIN_MODE?`<div style="display:flex;gap:6px;margin-top:10px" onclick="event.stopPropagation()">
         <button class="ebtn sm" onclick="editInitiative('${ini.id}')" type="button">تعديل</button>
         <button class="ebtn sm danger" onclick="delInitiative('${ini.id}')" type="button">حذف</button>
       </div>`:""}
     </div>`;
   }).join("")}</div>`;
+}
+
+function toggleIniExpand(iniId){
+  const card=document.getElementById("inic-"+iniId);
+  const panel=document.getElementById("ini-ix-"+iniId);
+  if(!card||!panel) return;
+  if(_iniSel===iniId){
+    panel.style.display="none";
+    card.classList.remove("selected");
+    _iniSel=null;
+  } else {
+    if(_iniSel){
+      const prevPanel=document.getElementById("ini-ix-"+_iniSel);
+      const prevCard=document.getElementById("inic-"+_iniSel);
+      if(prevPanel) prevPanel.style.display="none";
+      if(prevCard)  prevCard.classList.remove("selected");
+    }
+    _iniSel=iniId;
+    card.classList.add("selected");
+    const ini=STATE.initiatives.find(i=>i.id===iniId);
+    if(ini) _fillIniPanel(ini);
+    panel.style.display="block";
+  }
+}
+
+function _fillIniPanel(ini){
+  const panel=document.getElementById("ini-ix-"+ini.id);
+  if(!panel) return;
+  const kpis=ini.kpis||[];
+  let kpiHTML="";
+  if(kpis.length>=3){
+    kpiHTML=`<div style="margin:8px 0 4px;text-align:center">${svgRadar(kpis,130)}</div>`;
+  } else if(kpis.length>0){
+    kpiHTML=`<div style="margin:8px 0">${kpis.map(k=>{
+      const pct=Math.min(100,Math.round((+k.actual||0)/(+k.target||1)*100));
+      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;font-size:12px">
+        <span style="flex:1;color:var(--navy);font-weight:600">${esc(k.name)}</span>
+        <span style="font-weight:700;color:${kpiHex(pct)}">${toAr(pct)}%</span>
+      </div>`;
+    }).join("")}</div>`;
+  }
+  panel.innerHTML=`
+    <div style="font-size:11.5px;font-weight:700;color:var(--navy);margin-bottom:6px">المعالم</div>
+    ${_ganttHTML(ini.milestones||[])}
+    ${kpiHTML}
+    <div style="margin-top:10px;text-align:center">
+      <button class="ebtn sm teal" onclick="event.stopPropagation();showInitiativeDetail('${ini.id}')" type="button">فتح التفاصيل الكاملة</button>
+    </div>`;
 }
 
 /* ============================================================
@@ -765,9 +863,21 @@ const overlay=document.getElementById("overlay");
 const modal=document.getElementById("modal");
 function openModal(title,bodyHTML){
   modal.innerHTML=`<div class="mh"><h3>${title}</h3>
+    <button class="expand-btn" onclick="toggleModalExpand()" type="button" title="توسيع / تصغير"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
     <button class="close" onclick="closeModal()" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
   </div><div class="mb">${bodyHTML}</div>`;
+  modal.classList.remove("modal-xl");
   overlay.classList.add("show");
+}
+function toggleModalExpand(){
+  modal.classList.toggle("modal-xl");
+  const btn=modal.querySelector(".expand-btn");
+  if(!btn) return;
+  if(modal.classList.contains("modal-xl")){
+    btn.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H3v6M15 21h6v-6M3 9l7 7M21 15l-7-7"/></svg>`;
+  } else {
+    btn.innerHTML=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>`;
+  }
 }
 function closeModal(){ overlay.classList.remove("show"); }
 overlay.addEventListener("click",e=>{ if(e.target===overlay) closeModal(); });

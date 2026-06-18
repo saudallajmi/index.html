@@ -36,6 +36,7 @@ function defaultState() {
         "exec_plans"   => [],
         "oper_goals"   => [],
         "kpi_library"  => [],   // مكتبة مؤشرات الأداء المركزية
+        "change_log"   => [],   // سجل التعديلات
         "users"        => [],
         "updated_at"   => null,
     ];
@@ -75,6 +76,7 @@ function publicData($s) {
         "exec_plans"   => $s["exec_plans"],
         "oper_goals"   => $s["oper_goals"],
         "kpi_library"  => $s["kpi_library"],
+        "change_log"   => $s["change_log"],
         "updated_at"   => $s["updated_at"],
     ];
 }
@@ -104,7 +106,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         $sess = authenticate($username, $password, $state);
         if (!$sess) out(["err" => "غير مصرّح"], 403);
         $fields = ["identity","pillars","orientations","goals","initiatives",
-                   "portfolios","exec_plans","oper_goals","kpi_library"];
+                   "portfolios","exec_plans","oper_goals","kpi_library","change_log"];
         foreach ($fields as $f) {
             if (array_key_exists($f, $body)) $state[$f] = $body[$f];
         }

@@ -7,369 +7,74 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-<style>
-:root{
-  --navy:#0D3B6B;--navy-deep:#0A2E54;--teal:#179C7C;--green:#2ECC8F;
-  --ink:#0A2E54;--muted:#5b6b7e;--bg:#eef2f7;--card:#ffffff;
-  --line:#e3eaf3;--gold:#C9A24B;--orange:#e0824b;
-  --done:#2ECC8F;--prog:#179C7C;--late:#e0824b;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html{scroll-behavior:smooth}
-body{
-  font-family:"IBM Plex Sans Arabic",system-ui,sans-serif;
-  background:radial-gradient(1200px 700px at 90% -10%,rgba(46,204,143,.07),transparent 55%),
-    radial-gradient(900px 600px at -5% 110%,rgba(13,59,107,.06),transparent 55%),var(--bg);
-  color:var(--ink);min-height:100vh;-webkit-font-smoothing:antialiased;padding-bottom:60px;
-}
-.wrap{max-width:1280px;margin:0 auto;padding:0 clamp(14px,3vw,34px)}
-
-/* ===== Topbar ===== */
-.topbar{display:flex;align-items:center;justify-content:space-between;gap:16px;
-  padding:18px 0 16px;border-bottom:1px solid var(--line);margin-bottom:26px;
-  position:sticky;top:0;z-index:20;
-  background:linear-gradient(var(--bg),var(--bg) 70%,rgba(238,242,247,.85));
-  backdrop-filter:blur(6px)}
-.topbar .ttl h1{font-size:clamp(18px,2.4vw,24px);font-weight:700;color:var(--navy);letter-spacing:-.3px}
-.topbar .ttl .meta{font-size:12.5px;color:var(--muted);margin-top:3px}
-.topbar .ttl .meta b{color:var(--teal);font-weight:600}
-.topbar-actions{display:flex;align-items:center;gap:10px}
-.admintog{appearance:none;border:1px solid var(--line);background:var(--card);cursor:pointer;font-family:inherit;
-  font-size:12.5px;font-weight:700;color:var(--navy);padding:8px 14px;border-radius:99px;transition:.2s;
-  display:inline-flex;align-items:center;gap:7px}
-.admintog:hover{border-color:var(--teal);color:var(--teal)}
-.admintog.on{background:linear-gradient(135deg,#0D3B6B,#147a62);color:#fff;border-color:transparent}
-
-/* ===== Admin banner ===== */
-.adminbanner{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:13px 18px;border-radius:14px;
-  background:linear-gradient(135deg,rgba(46,204,143,.12),rgba(23,156,124,.08));border:1px solid rgba(23,156,124,.3)}
-.adminbanner svg{width:22px;height:22px;flex:none;stroke:var(--teal)}
-.adminbanner .ab-txt{font-size:13px;color:var(--muted);line-height:1.6;flex:1}
-.adminbanner .ab-txt b{color:var(--navy)}
-.ab-log{appearance:none;border:1px solid rgba(23,156,124,.4);background:#fff;color:var(--teal);
-  font-family:inherit;font-weight:700;font-size:12px;padding:7px 13px;border-radius:99px;cursor:pointer;flex:none}
-.ab-log:hover{background:var(--teal);color:#fff}
-
-/* ===== KPI Cards ===== */
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px}
-@media(max-width:820px){.kpis{grid-template-columns:1fr 1fr}}
-.kpi{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px 20px;
-  overflow:hidden;text-align:right;position:relative;
-  box-shadow:0 1px 2px rgba(13,59,107,.04),0 14px 34px -30px rgba(13,59,107,.4);
-  opacity:0;transform:translateY(14px);animation:rise .6s forwards}
-.kpi:nth-child(1){animation-delay:.05s}.kpi:nth-child(2){animation-delay:.12s}
-.kpi:nth-child(3){animation-delay:.19s}.kpi:nth-child(4){animation-delay:.26s}
-.kpi::after{content:"";position:absolute;bottom:0;right:0;left:0;height:3px;
-  background:linear-gradient(90deg,var(--navy),var(--teal),var(--green))}
-.kpi .lbl{font-size:13px;color:var(--muted);font-weight:500;display:flex;align-items:center;gap:8px}
-.kpi .lbl svg{width:16px;height:16px;stroke:var(--teal);flex:none}
-.kpi .val{font-size:clamp(26px,3vw,34px);font-weight:700;color:var(--navy);margin-top:8px;line-height:1}
-.kpi .val .u{font-size:15px;font-weight:600;color:var(--muted)}
-.kpi .bar{margin-top:13px;height:8px;border-radius:99px;background:#eef2f7;overflow:hidden}
-.kpi .bar span{display:block;height:100%;border-radius:99px;
-  background:linear-gradient(90deg,var(--teal),var(--green));width:0;transition:width 1.3s cubic-bezier(.2,.7,.2,1)}
-
-/* ===== Level Tabs ===== */
-.level-tabs{display:flex;gap:0;margin-bottom:22px;background:var(--card);border:1px solid var(--line);
-  border-radius:16px;padding:5px;box-shadow:0 1px 2px rgba(13,59,107,.04),0 12px 30px -28px rgba(13,59,107,.4)}
-.ltab{flex:1;appearance:none;border:none;background:none;font-family:inherit;font-size:14px;font-weight:700;
-  color:var(--muted);padding:11px 8px;border-radius:12px;cursor:pointer;transition:.25s;
-  display:flex;align-items:center;justify-content:center;gap:7px}
-.ltab svg{width:16px;height:16px;flex:none}
-.ltab:hover{color:var(--navy);background:#f4f7fb}
-.ltab.on{background:linear-gradient(135deg,var(--navy),#1a5a8a);color:#fff;
-  box-shadow:0 4px 14px -4px rgba(13,59,107,.5)}
-.ltab .badge{font-size:11px;font-weight:700;background:rgba(255,255,255,.2);
-  padding:2px 8px;border-radius:99px}
-.ltab:not(.on) .badge{background:#eef2f7;color:var(--muted)}
-
-/* ===== Section card ===== */
-.sec{background:var(--card);border:1px solid var(--line);border-radius:20px;margin-bottom:18px;
-  padding:22px;box-shadow:0 1px 2px rgba(13,59,107,.04),0 16px 38px -32px rgba(13,59,107,.4);
-  opacity:0;transform:translateY(14px);animation:rise .55s forwards}
-.sec-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;flex-wrap:wrap}
-.sec-h h2{font-size:16px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:9px}
-.sec-h h2 svg{width:18px;height:18px;stroke:var(--teal)}
-.sec-h .sec-actions{display:flex;gap:8px;flex-wrap:wrap}
-
-/* ===== Identity Section ===== */
-.identity-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-@media(max-width:720px){.identity-grid{grid-template-columns:1fr}}
-.id-card{background:linear-gradient(135deg,rgba(13,59,107,.04),rgba(23,156,124,.06));
-  border:1px solid rgba(23,156,124,.2);border-radius:16px;padding:18px 20px}
-.id-card .id-lbl{font-size:11.5px;font-weight:700;color:var(--teal);display:flex;align-items:center;gap:6px;margin-bottom:10px}
-.id-card .id-lbl svg{width:15px;height:15px;stroke:var(--teal)}
-.id-card .id-val{font-size:15px;font-weight:600;color:var(--navy);line-height:1.85}
-.id-card.empty .id-val{color:#aab5c4;font-weight:400;font-style:italic}
-.values-wrap{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:10px;margin-top:4px}
-.val-chip{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;
-  color:var(--navy);background:#f1f5fa;border:1px solid var(--line);padding:8px 14px;border-radius:99px}
-.val-chip i{width:8px;height:8px;border-radius:50%;background:linear-gradient(135deg,var(--teal),var(--green));flex:none}
-
-/* ===== Pillars ===== */
-.pillars-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:14px}
-.pillar-card{border-radius:16px;padding:18px;border:1px solid var(--line);cursor:pointer;transition:.25s;
-  background:var(--card);box-shadow:0 1px 2px rgba(13,59,107,.04),0 10px 26px -22px rgba(13,59,107,.4)}
-.pillar-card:hover{transform:translateY(-3px);box-shadow:0 1px 2px rgba(13,59,107,.04),0 18px 36px -20px rgba(13,59,107,.5)}
-.pillar-card .pc-num{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:8px}
-.pillar-card .pc-name{font-size:15px;font-weight:700;color:var(--navy);line-height:1.5;margin-bottom:12px}
-.pillar-card .pc-axes{display:flex;flex-wrap:wrap;gap:6px}
-.pillar-card .ax-chip{font-size:11px;font-weight:600;color:var(--teal);background:rgba(23,156,124,.1);
-  border:1px solid rgba(23,156,124,.2);padding:3px 10px;border-radius:99px}
-.pillar-strip{height:4px;border-radius:99px;background:linear-gradient(90deg,var(--navy),var(--teal));margin-bottom:14px}
-
-/* ===== Orientations ===== */
-.orient-list{display:flex;flex-direction:column;gap:8px}
-.orient-row{display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:12px;
-  background:#f7fafc;border:1px solid var(--line)}
-.orient-row .or-n{font-size:11px;font-weight:700;color:var(--muted);min-width:22px}
-.orient-row .or-txt{flex:1;font-size:14px;font-weight:600;color:var(--navy)}
-.orient-row .or-actions{display:flex;gap:6px}
-
-/* ===== Goals ===== */
-.goals-tree{display:flex;flex-direction:column;gap:12px}
-.goal-card{border:1px solid var(--line);border-radius:16px;overflow:hidden;
-  box-shadow:0 1px 2px rgba(13,59,107,.04),0 8px 22px -20px rgba(13,59,107,.3)}
-.goal-card .gc-head{display:flex;align-items:center;gap:12px;padding:14px 16px;cursor:pointer;
-  background:linear-gradient(135deg,rgba(13,59,107,.04),rgba(13,59,107,.02));transition:.2s}
-.goal-card .gc-head:hover{background:rgba(23,156,124,.06)}
-.goal-card .gc-num{font-size:11px;font-weight:700;color:#fff;background:var(--navy);
-  min-width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none}
-.goal-card .gc-name{flex:1;font-size:15px;font-weight:700;color:var(--navy);line-height:1.5}
-.goal-card .gc-meta{display:flex;align-items:center;gap:8px;flex:none;flex-wrap:wrap}
-.goal-card .gc-pct{font-size:13px;font-weight:700;color:var(--teal)}
-.goal-card .gc-body{border-top:1px solid var(--line);padding:14px 16px;display:none}
-.goal-card.open .gc-body{display:block}
-.goal-card .gc-bar{height:6px;border-radius:99px;background:#eef2f7;overflow:hidden;margin:8px 0 14px}
-.goal-card .gc-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:99px}
-
-/* Sub/Detailed goals */
-.sub-goal{border:1px solid var(--line);border-radius:12px;margin-bottom:8px;overflow:hidden}
-.sub-goal .sg-head{display:flex;align-items:center;gap:10px;padding:11px 14px;cursor:pointer;transition:.18s}
-.sub-goal .sg-head:hover{background:#f4f7fb}
-.sub-goal .sg-dot{width:10px;height:10px;border-radius:50%;background:var(--teal);flex:none}
-.sub-goal .sg-name{flex:1;font-size:14px;font-weight:600;color:var(--navy)}
-.sub-goal .sg-body{border-top:1px solid var(--line);padding:10px 14px;display:none;background:#fafcfe}
-.sub-goal.open .sg-body{display:block}
-.det-goal{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:9px;background:#f1f5fa;margin-bottom:6px}
-.det-goal:last-child{margin-bottom:0}
-.det-goal .dg-bullet{width:6px;height:6px;border-radius:50%;background:#aab5c4;flex:none}
-.det-goal .dg-name{font-size:13px;color:var(--navy);font-weight:500}
-
-/* KPI table */
-.kpi-tbl{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:10px}
-.kpi-tbl th{font-size:11px;font-weight:700;color:var(--muted);text-align:right;padding:7px 10px;
-  background:#f4f7fb;border-bottom:1px solid var(--line)}
-.kpi-tbl td{padding:8px 10px;border-bottom:1px solid #f1f5fa;vertical-align:middle}
-.kpi-tbl tr:last-child td{border-bottom:none}
-.kpi-tbl .kn{font-weight:600;color:var(--navy)}
-.kpi-tbl .kv{color:var(--teal);font-weight:700}
-.kpi-tbl .kprog{display:flex;align-items:center;gap:8px;min-width:100px}
-.kpi-tbl .kbar{flex:1;height:6px;border-radius:6px;background:#eef2f7;overflow:hidden}
-.kpi-tbl .kfill{height:100%;border-radius:6px;background:linear-gradient(90deg,var(--teal),var(--green))}
-
-/* ===== Portfolios ===== */
-.portfolio-card{border:1px solid var(--line);border-radius:18px;overflow:hidden;margin-bottom:16px;
-  box-shadow:0 1px 2px rgba(13,59,107,.04),0 12px 30px -26px rgba(13,59,107,.4)}
-.portfolio-card .pf-head{display:flex;align-items:center;gap:12px;padding:16px 18px;
-  background:linear-gradient(135deg,var(--navy),#1a5a8a);color:#fff}
-.portfolio-card .pf-name{flex:1;font-size:16px;font-weight:700}
-.portfolio-card .pf-stats{font-size:12px;font-weight:600;opacity:.8}
-.portfolio-card .pf-body{padding:16px 18px}
-.initiative-row{border:1px solid var(--line);border-radius:13px;padding:14px;margin-bottom:10px;
-  background:#fafcfe;cursor:pointer;transition:.18s}
-.initiative-row:last-child{margin-bottom:0}
-.initiative-row:hover{border-color:#c9d6e6;background:#f4f7fb}
-.initiative-row .ir-top{display:flex;align-items:center;gap:10px;margin-bottom:8px}
-.initiative-row .ir-name{flex:1;font-size:14px;font-weight:700;color:var(--navy)}
-.initiative-row .ir-owner{font-size:11.5px;color:var(--muted)}
-.initiative-row .ir-pct{font-size:13px;font-weight:700;color:var(--teal)}
-.initiative-row .ir-bar{height:7px;border-radius:99px;background:#eef2f7;overflow:hidden}
-.initiative-row .ir-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--teal),var(--green))}
-.initiative-row .ir-meta{display:flex;gap:14px;margin-top:8px;flex-wrap:wrap}
-.initiative-row .ir-meta span{font-size:11.5px;color:var(--muted);display:flex;align-items:center;gap:4px}
-.initiative-row .ir-meta svg{width:12px;height:12px;stroke:var(--teal)}
-
-/* ===== Executive Plans ===== */
-.ep-card{border:1px solid rgba(201,162,75,.3);border-radius:16px;padding:18px;background:rgba(201,162,75,.04);margin-bottom:14px}
-.ep-card .ep-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.ep-card .ep-year{font-size:11px;font-weight:700;color:#fff;background:var(--gold);padding:3px 10px;border-radius:99px}
-.ep-card .ep-name{font-size:16px;font-weight:700;color:var(--navy)}
-.ep-obj{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:11px;
-  background:#fff;border:1px solid var(--line);margin-bottom:8px}
-.ep-obj .eo-dot{width:9px;height:9px;border-radius:50%;background:var(--gold);flex:none;margin-top:4px}
-.ep-obj .eo-txt{font-size:14px;font-weight:600;color:var(--navy);line-height:1.6}
-
-/* ===== Operational ===== */
-.oper-card{border:1px solid var(--line);border-radius:16px;padding:18px;margin-bottom:14px;
-  background:var(--card);box-shadow:0 1px 2px rgba(13,59,107,.04),0 10px 26px -24px rgba(13,59,107,.3)}
-.oper-card .oc-head{display:flex;align-items:center;gap:10px;margin-bottom:14px}
-.oper-card .oc-num{font-size:11px;font-weight:700;color:#fff;background:#5b6b7e;
-  min-width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none}
-.oper-card .oc-name{flex:1;font-size:15px;font-weight:700;color:var(--navy)}
-.prog-row{background:#f7fafc;border:1px solid var(--line);border-radius:11px;padding:12px;margin-bottom:8px}
-.prog-row .pr-name{font-size:13.5px;font-weight:700;color:var(--navy);margin-bottom:8px}
-.task-chip{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
-  color:var(--muted);background:#fff;border:1px solid var(--line);padding:5px 10px;border-radius:99px;margin:3px}
-.task-chip.done{color:#178a5c;background:rgba(46,204,143,.08);border-color:rgba(46,204,143,.25)}
-.task-chip.late{color:#b85a25;background:rgba(224,130,75,.08);border-color:rgba(224,130,75,.25)}
-
-/* ===== Status Pills ===== */
-.spill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:700;padding:4px 11px;border-radius:99px}
-.spill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor}
-.spill.done{color:#178a5c;background:rgba(46,204,143,.14)}
-.spill.todo{color:#147a8a;background:rgba(23,140,156,.12)}
-.spill.late{color:#b85a25;background:rgba(224,130,75,.15)}
-.spill.none{color:#7a879a;background:#eef2f7}
-
-/* ===== Buttons ===== */
-.ebtn{appearance:none;border:1px solid var(--line);background:#fff;color:var(--navy);font-family:inherit;
-  font-size:12.5px;font-weight:700;padding:9px 14px;border-radius:11px;cursor:pointer;transition:.2s;
-  display:inline-flex;align-items:center;gap:7px}
-.ebtn svg{width:15px;height:15px}
-.ebtn:hover{border-color:var(--teal);color:var(--teal)}
-.ebtn.primary{background:linear-gradient(135deg,var(--navy),#1a5a8a);color:#fff;border-color:transparent;
-  box-shadow:0 8px 20px -10px rgba(13,59,107,.6)}
-.ebtn.primary:hover{transform:translateY(-1px);box-shadow:0 12px 26px -10px rgba(13,59,107,.7)}
-.ebtn.danger{color:#b04a2a;border-color:rgba(224,130,75,.4)}
-.ebtn.danger:hover{background:rgba(224,130,75,.1);border-color:#e0824b;color:#b04a2a}
-.ebtn.sm{font-size:11.5px;padding:6px 11px;border-radius:9px}
-
-/* ===== Add card ===== */
-.add-card{border:2px dashed #c9d6e6;background:#f7fafc;border-radius:16px;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:6px;padding:24px;cursor:pointer;transition:.2s;text-align:center;color:var(--teal);min-height:120px}
-.add-card:hover{border-color:var(--teal);background:rgba(46,204,143,.05)}
-.add-card .plus{font-size:28px;font-weight:300;line-height:1}
-.add-card b{font-size:13.5px;color:var(--navy)}
-.add-card span{font-size:12px;color:var(--muted)}
-
-/* ===== Modal ===== */
-.overlay{position:fixed;inset:0;background:rgba(10,46,84,.45);backdrop-filter:blur(4px);display:flex;
-  align-items:flex-start;justify-content:center;padding:clamp(16px,4vw,40px) 16px;
-  opacity:0;pointer-events:none;transition:opacity .3s;z-index:60;overflow-y:auto}
-.overlay.show{opacity:1;pointer-events:auto}
-.modal{background:var(--card);border-radius:22px;max-width:640px;width:100%;
-  box-shadow:0 40px 90px -30px rgba(10,46,84,.5);transform:translateY(20px) scale(.98);
-  transition:transform .35s cubic-bezier(.2,.7,.2,1);overflow:hidden}
-.overlay.show .modal{transform:none}
-.modal .mh{padding:22px 24px 18px;background:linear-gradient(135deg,#0D3B6B,#0A2E54)}
-.modal .mh h3{color:#fff;font-size:18px;font-weight:700}
-.modal .mh .close{position:absolute;top:18px;left:18px;width:32px;height:32px;border-radius:9px;border:none;
-  background:rgba(255,255,255,.14);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.modal .mh .close:hover{background:rgba(255,255,255,.26)}.modal .mh .close svg{width:16px;height:16px}
-.modal .mb{padding:20px 24px 24px;max-height:66vh;overflow-y:auto}
-
-/* ===== Forms ===== */
-.eform{display:flex;flex-direction:column;gap:13px}
-.eform .fl{display:flex;flex-direction:column;gap:5px;font-size:12.5px;font-weight:600;color:var(--navy)}
-.eform .fl input,.eform .fl textarea,.eform .fl select{
-  font-family:inherit;font-size:14px;color:var(--ink);background:#f7fafc;
-  border:1px solid var(--line);border-radius:11px;padding:10px 13px;outline:none;transition:.2s;width:100%}
-.eform .fl input:focus,.eform .fl textarea:focus,.eform .fl select:focus{
-  border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(46,204,143,.12)}
-.eform .fl textarea{min-height:90px;resize:vertical}
-.eform .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:500px){.eform .frow{grid-template-columns:1fr}}
-.faprow{display:flex;gap:10px;justify-content:flex-start;margin-top:8px}
-.ferr{color:#c0392b;font-size:12.5px;font-weight:600;min-height:16px}
-
-/* ===== Tags builder ===== */
-.tag-builder{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;border:1px solid var(--line);
-  border-radius:11px;padding:8px;background:#f7fafc;min-height:46px;align-items:center}
-.tag-builder input{border:none;background:none;outline:none;font-family:inherit;font-size:13.5px;
-  color:var(--ink);flex:1;min-width:100px;padding:2px 4px}
-.tag-item{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;
-  color:var(--navy);background:#fff;border:1px solid var(--line);padding:5px 10px;border-radius:99px}
-.tag-item .tx{cursor:pointer;color:var(--muted);font-size:14px;line-height:1}
-.tag-item .tx:hover{color:#c0392b}
-
-/* ===== Auth overlay ===== */
-.aov{position:fixed;inset:0;background:rgba(10,46,84,.5);backdrop-filter:blur(4px);display:flex;
-  align-items:center;justify-content:center;padding:20px;opacity:0;pointer-events:none;transition:.25s;z-index:90}
-.aov.show{opacity:1;pointer-events:auto}
-.amodal{background:var(--card);border-radius:20px;max-width:400px;width:100%;padding:28px;
-  box-shadow:0 40px 90px -30px rgba(10,46,84,.5);transform:translateY(16px);transition:transform .3s}
-.aov.show .amodal{transform:none}
-.amodal h3{font-size:18px;font-weight:700;color:var(--navy);margin-bottom:4px}
-.amodal p{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.7}
-.amodal label{display:block;font-size:12.5px;font-weight:600;color:var(--navy);margin-bottom:5px}
-.amodal input{font-family:inherit;font-size:15px;color:var(--ink);background:#f7fafc;
-  border:1px solid var(--line);border-radius:11px;padding:12px 14px;outline:none;width:100%;margin-bottom:12px}
-.amodal input:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(46,204,143,.12)}
-.amodal .aperr{color:#c0392b;font-size:12.5px;font-weight:600;min-height:16px;margin-bottom:8px}
-
-/* ===== KPI sub-section ===== */
-.kpi-sec-head{display:flex;align-items:center;justify-content:space-between;margin:14px 0 8px}
-.kpi-sec-head span{font-size:12.5px;font-weight:700;color:var(--navy);display:flex;align-items:center;gap:6px}
-.kpi-sec-head span::before{content:"";width:3px;height:14px;border-radius:99px;background:var(--gold);display:inline-block}
-
-/* ===== Empty state ===== */
-.empty{text-align:center;color:var(--muted);padding:36px 20px;font-size:14px}
-.empty svg{width:40px;height:40px;stroke:#d0d9e6;margin-bottom:10px;display:block;margin-inline:auto}
-
-/* ===== Toast ===== */
-.toast{position:fixed;bottom:24px;left:50%;transform:translate(-50%,140%);background:var(--navy);color:#fff;
-  padding:12px 22px;border-radius:99px;font-size:13.5px;font-weight:600;
-  box-shadow:0 18px 40px -12px rgba(10,46,84,.6);z-index:120;transition:transform .35s cubic-bezier(.2,.7,.2,1)}
-.toast.show{transform:translate(-50%,0)}
-.toast.ok{background:linear-gradient(135deg,#179C7C,#2ECC8F)}
-.toast.err{background:#c0392b}
-
-/* ===== Users modal ===== */
-.urow{border:1px solid var(--line);border-radius:12px;padding:13px;background:#fafcfe;margin-bottom:8px;display:flex;align-items:center;gap:10px}
-.urow .uin{flex:1;font-family:inherit;font-size:13.5px;color:var(--ink);background:#fff;border:1px solid var(--line);
-  border-radius:9px;padding:8px 11px;outline:none;transition:.2s;min-width:0}
-.urow .uin:focus{border-color:var(--teal)}
-
-@keyframes rise{to{opacity:1;transform:none}}
-@media(prefers-reduced-motion:reduce){.kpi,.sec,.goal-card{animation:none!important;opacity:1!important;transform:none!important}}
-</style>
+<link rel="stylesheet" href="strategy.css">
 </head>
 <body>
-
 <div class="wrap">
+
+  <!-- ===== Topbar ===== -->
   <div class="topbar">
     <div class="ttl">
       <h1 id="pageTitle">الخطة الاستراتيجية</h1>
       <div class="meta" id="topMeta">جارٍ التحميل…</div>
     </div>
     <div class="topbar-actions">
-      <button class="admintog" id="adminToggle" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>تسجيل الدخول</button>
-      <button class="admintog" id="logoutBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>خروج</button>
+      <button class="admintog" id="adminToggle" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+        تسجيل الدخول
+      </button>
+      <button class="admintog" id="logoutBtn" type="button" style="display:none">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+        خروج
+      </button>
     </div>
   </div>
 
+  <!-- ===== Admin Banner ===== -->
   <div class="adminbanner" id="adminBanner" style="display:none">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 4v6c0 5-3.5 8-8 10-4.5-2-8-5-8-10V6z"/><path d="M9 12l2 2 4-4"/></svg>
     <div class="ab-txt" id="abWho"><b>وضع الإدارة مُفعّل</b></div>
+    <button class="ab-log" id="kpiLibraryBtn" type="button" style="display:none">مكتبة KPI</button>
     <button class="ab-log" id="manageUsersBtn" type="button" style="display:none">إدارة المستخدمين</button>
-    <button class="ab-log" id="saveAllBtn" type="button">حفظ كل التغييرات</button>
+    <button class="ab-log" id="changeLogBtn" type="button">سجل التغييرات</button>
+    <button class="ab-log" id="saveAllBtn" type="button">حفظ يدوي</button>
   </div>
 
-  <!-- KPIs -->
-  <div class="kpis" id="kpisRow">
+  <!-- ===== KPI Summary Cards ===== -->
+  <div class="kpis">
     <div class="kpi">
-      <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>إنجاز الأهداف الاستراتيجية</div>
+      <div class="lbl">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg>
+        إنجاز الأهداف الاستراتيجية
+      </div>
       <div class="val"><span id="kGoalPct">0</span><span class="u">%</span></div>
       <div class="bar"><span id="kGoalBar"></span></div>
     </div>
     <div class="kpi">
-      <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M3 12h2M19 12h2M12 3v2M12 19v2"/></svg>المبادرات الاستراتيجية</div>
+      <div class="lbl">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+        المبادرات الاستراتيجية
+      </div>
       <div class="val"><span id="kInitCount">0</span></div>
     </div>
     <div class="kpi">
-      <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>إنجاز المبادرات</div>
+      <div class="lbl">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        متوسط إنجاز المبادرات
+      </div>
       <div class="val"><span id="kInitPct">0</span><span class="u">%</span></div>
       <div class="bar"><span id="kInitBar"></span></div>
     </div>
     <div class="kpi">
-      <div class="lbl"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>مؤشرات الأداء (KPIs)</div>
+      <div class="lbl">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+        مؤشرات الأداء (KPIs)
+      </div>
       <div class="val"><span id="kKpiCount">0</span></div>
     </div>
   </div>
 
-  <!-- Level Tabs -->
+  <!-- ===== Level Tabs ===== -->
   <div class="level-tabs">
     <button class="ltab on" data-tab="strategic" type="button">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l8 14H4z"/></svg>
@@ -385,89 +90,177 @@ body{
     </button>
   </div>
 
-  <!-- ===== TAB: الاستراتيجية ===== -->
+  <!-- ===== STRATEGIC PANE ===== -->
   <div id="paneStrategic">
 
-    <!-- الهوية الاستراتيجية -->
-    <div class="sec" style="animation-delay:.05s">
-      <div class="sec-h">
-        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>الهوية الاستراتيجية</h2>
-        <div class="sec-actions"><button class="ebtn sm" id="editIdentityBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>تعديل الهوية</button></div>
-      </div>
-      <div class="identity-grid" id="identityView"></div>
+    <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+      <button class="ebtn" id="mapToggleBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7z"/><path d="M9 4v13M15 7v13"/></svg>
+        خريطة استراتيجية
+      </button>
     </div>
 
-    <!-- الركائز والمحاور -->
-    <div class="sec" style="animation-delay:.1s">
-      <div class="sec-h">
-        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>الركائز والمحاور</h2>
-        <div class="sec-actions"><button class="ebtn sm" id="addPillarBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة ركيزة</button></div>
+    <!-- Strategy Map Panel -->
+    <div id="stratMapPane" style="display:none">
+      <div class="sec" style="animation-delay:.04s">
+        <div class="sec-h">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7z"/></svg>
+            خريطة الاستراتيجية (BSC)
+          </h2>
+        </div>
+        <div id="stratMapContent"></div>
       </div>
-      <div class="pillars-grid" id="pillarsGrid"></div>
     </div>
 
-    <!-- التوجهات -->
-    <div class="sec" style="animation-delay:.15s">
-      <div class="sec-h">
-        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>التوجهات والتطلعات</h2>
-        <div class="sec-actions"><button class="ebtn sm" id="addOrientBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة توجه</button></div>
-      </div>
-      <div id="orientList"></div>
-    </div>
+    <!-- List Panel -->
+    <div id="stratListPane">
 
-    <!-- الأهداف الاستراتيجية -->
-    <div class="sec" style="animation-delay:.2s">
-      <div class="sec-h">
-        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>الأهداف الاستراتيجية</h2>
-        <div class="sec-actions"><button class="ebtn sm primary" id="addGoalBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة هدف</button></div>
+      <div class="sec" style="animation-delay:.05s">
+        <div class="sec-h">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v4l3 3"/></svg>
+            الهوية الاستراتيجية
+          </h2>
+          <div class="sec-actions">
+            <button class="ebtn sm" id="editIdentityBtn" type="button" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+              تعديل الهوية
+            </button>
+          </div>
+        </div>
+        <div class="identity-grid" id="identityView"></div>
       </div>
-      <div class="goals-tree" id="goalsTree"></div>
-    </div>
 
+      <div class="sec" style="animation-delay:.1s">
+        <div class="sec-h">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+            الركائز والمحاور
+          </h2>
+          <div class="sec-actions">
+            <button class="ebtn sm" id="addPillarBtn" type="button" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              إضافة ركيزة
+            </button>
+          </div>
+        </div>
+        <div class="pillars-grid" id="pillarsGrid"></div>
+      </div>
+
+      <div class="sec" style="animation-delay:.15s">
+        <div class="sec-h">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            التوجهات والتطلعات
+          </h2>
+          <div class="sec-actions">
+            <button class="ebtn sm" id="addOrientBtn" type="button" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              إضافة توجه
+            </button>
+          </div>
+        </div>
+        <div id="orientList"></div>
+      </div>
+
+      <div class="sec" style="animation-delay:.2s">
+        <div class="sec-h">
+          <h2>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>
+            الأهداف الاستراتيجية
+          </h2>
+          <div class="sec-actions">
+            <button class="ebtn sm primary" id="addGoalBtn" type="button" style="display:none">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+              إضافة هدف
+            </button>
+          </div>
+        </div>
+        <div class="goals-tree" id="goalsTree"></div>
+      </div>
+
+    </div><!-- /stratListPane -->
   </div><!-- /paneStrategic -->
 
-  <!-- ===== TAB: التنفيذ ===== -->
+  <!-- ===== EXECUTIVE PANE ===== -->
   <div id="paneExecutive" style="display:none">
 
-    <!-- المحافظ والمبادرات -->
     <div class="sec" style="animation-delay:.05s">
       <div class="sec-h">
-        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>المحافظ الاستراتيجية والمبادرات</h2>
-        <div class="sec-actions"><button class="ebtn sm primary" id="addPortfolioBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة محفظة</button></div>
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+          المبادرات الاستراتيجية
+        </h2>
+        <div class="sec-actions">
+          <button class="ebtn sm primary" id="addInitiativeBtn" type="button" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            إضافة مبادرة
+          </button>
+        </div>
+      </div>
+      <div id="initiativesList"></div>
+    </div>
+
+    <div class="sec" style="animation-delay:.1s">
+      <div class="sec-h">
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>
+          المحافظ الاستراتيجية
+        </h2>
+        <div class="sec-actions">
+          <button class="ebtn sm" id="addPortfolioBtn" type="button" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            إضافة محفظة
+          </button>
+        </div>
       </div>
       <div id="portfoliosList"></div>
     </div>
 
-    <!-- الخطط التنفيذية -->
-    <div class="sec" style="animation-delay:.1s">
+    <div class="sec" style="animation-delay:.15s">
       <div class="sec-h">
-        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>الخطط التنفيذية</h2>
-        <div class="sec-actions"><button class="ebtn sm" id="addExecPlanBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة خطة</button></div>
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 12h6M9 16h4"/></svg>
+          الخطط التنفيذية
+        </h2>
+        <div class="sec-actions">
+          <button class="ebtn sm" id="addExecPlanBtn" type="button" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            إضافة خطة
+          </button>
+        </div>
       </div>
       <div id="execPlansList"></div>
     </div>
 
   </div><!-- /paneExecutive -->
 
-  <!-- ===== TAB: التشغيل ===== -->
+  <!-- ===== OPERATIONAL PANE ===== -->
   <div id="paneOperational" style="display:none">
-
     <div class="sec" style="animation-delay:.05s">
       <div class="sec-h">
-        <h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>الأهداف التشغيلية والبرامج</h2>
-        <div class="sec-actions"><button class="ebtn sm primary" id="addOperGoalBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>إضافة هدف تشغيلي</button></div>
+        <h2>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+          الأهداف التشغيلية والبرامج
+        </h2>
+        <div class="sec-actions">
+          <button class="ebtn sm primary" id="addOperGoalBtn" type="button" style="display:none">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            إضافة هدف تشغيلي
+          </button>
+        </div>
       </div>
       <div id="operGoalsList"></div>
     </div>
-
   </div><!-- /paneOperational -->
 
 </div><!-- /wrap -->
 
-<!-- Modal -->
-<div class="overlay" id="overlay"><div class="modal" id="modal" style="position:relative"></div></div>
+<!-- Main Modal -->
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
 
-<!-- Auth overlay -->
+<!-- Auth Overlay -->
 <div class="aov" id="authOv">
   <div class="amodal">
     <h3>تسجيل الدخول</h3>
@@ -484,919 +277,6 @@ body{
 <!-- Toast -->
 <div class="toast" id="toast"></div>
 
-<script>
-/* ============================================================
-   STATE
-   ============================================================ */
-let STATE = {
-  identity:     { vision:"", mission:"", values:[] },
-  pillars:      [],
-  orientations: [],
-  goals:        [],
-  portfolios:   [],
-  exec_plans:   [],
-  oper_goals:   [],
-  updated_at:   null,
-};
-let SESSION = null; // { role, username }
-let ADMIN_MODE = false;
-const API = "strategy-data.php";
-
-/* ============================================================
-   UTILS
-   ============================================================ */
-function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
-function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
-function todayISO(){ return new Date().toISOString().slice(0,10); }
-function fmtDate(s){ if(!s) return "—"; const d=new Date(s+"T00:00:00"); return d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"}); }
-function toAr(n){ return String(n).replace(/\d/g,d=>"٠١٢٣٤٥٦٧٨٩"[d]); }
-function toast(msg,type="ok"){
-  const t=document.getElementById("toast");
-  t.textContent=msg;t.className="toast "+(type||"ok");
-  setTimeout(()=>t.classList.add("show"),10);
-  setTimeout(()=>t.classList.remove("show"),3000);
-}
-function statusPill(st){
-  const m={done:"مكتمل",todo:"جارٍ",late:"متأخر",none:"لم يبدأ"};
-  return `<span class="spill ${st}">${m[st]||st}</span>`;
-}
-function calcStatus(pct,end){
-  if(+pct>=100) return "done";
-  if(end && end<todayISO()) return "late";
-  if(+pct>0) return "todo";
-  return "none";
-}
-
-/* ============================================================
-   API
-   ============================================================ */
-async function apiGet(){
-  try{ const r=await fetch(API); if(!r.ok) throw new Error(); return await r.json(); }
-  catch{ return null; }
-}
-async function apiPost(body){
-  try{
-    const r=await fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
-    return await r.json();
-  }catch{ return {err:"تعذّر الاتصال بالخادم"}; }
-}
-async function saveAll(){
-  if(!SESSION) return;
-  const body={action:"save",username:SESSION.username,password:SESSION.password,
-    identity:STATE.identity,pillars:STATE.pillars,orientations:STATE.orientations,
-    goals:STATE.goals,portfolios:STATE.portfolios,exec_plans:STATE.exec_plans,oper_goals:STATE.oper_goals};
-  const res=await apiPost(body);
-  if(res.err){ toast(res.err,"err"); return; }
-  STATE.updated_at=res.updated_at;
-  updateMeta();
-  toast("تم الحفظ بنجاح ✓");
-}
-
-/* ============================================================
-   LOAD + INIT
-   ============================================================ */
-async function init(){
-  const data=await apiGet();
-  if(data && !data.err){
-    if(data.identity) STATE.identity=data.identity;
-    if(data.pillars)  STATE.pillars=data.pillars;
-    if(data.orientations) STATE.orientations=data.orientations;
-    if(data.goals)    STATE.goals=data.goals;
-    if(data.portfolios) STATE.portfolios=data.portfolios;
-    if(data.exec_plans) STATE.exec_plans=data.exec_plans;
-    if(data.oper_goals) STATE.oper_goals=data.oper_goals;
-    if(data.updated_at) STATE.updated_at=data.updated_at;
-  }
-  renderAll();
-  updateMeta();
-  updateKPIs();
-  updateTabBadges();
-}
-
-function updateMeta(){
-  const el=document.getElementById("topMeta");
-  if(!STATE.updated_at){ el.innerHTML="لم يُحفَظ بعد"; return; }
-  const d=new Date(STATE.updated_at);
-  el.innerHTML=`آخر تحديث: <b>${d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"})}</b>`;
-}
-
-function renderAll(){
-  renderIdentity();
-  renderPillars();
-  renderOrientations();
-  renderGoals();
-  renderPortfolios();
-  renderExecPlans();
-  renderOperGoals();
-}
-
-/* ============================================================
-   KPIs
-   ============================================================ */
-function updateKPIs(){
-  // Goal avg KPI
-  const kpis=[];
-  STATE.goals.forEach(g=>(g.kpis||[]).forEach(k=>kpis.push(k)));
-  const goalPct = kpis.length ? Math.round(kpis.reduce((s,k)=>s+Math.min(100,(+k.actual||0)/(+k.target||1)*100),0)/kpis.length) : 0;
-  document.getElementById("kGoalPct").textContent=toAr(goalPct);
-  document.getElementById("kGoalBar").style.width=goalPct+"%";
-
-  // Initiatives
-  const inits=STATE.portfolios.flatMap(p=>p.initiatives||[]);
-  document.getElementById("kInitCount").textContent=toAr(inits.length);
-  const initPct=inits.length? Math.round(inits.reduce((s,i)=>s+(+i.pct||0),0)/inits.length):0;
-  document.getElementById("kInitPct").textContent=toAr(initPct);
-  document.getElementById("kInitBar").style.width=initPct+"%";
-
-  // KPI count
-  let kpiTotal=kpis.length;
-  STATE.portfolios.forEach(p=>(p.initiatives||[]).forEach(i=>kpiTotal+=(i.kpis||[]).length));
-  document.getElementById("kKpiCount").textContent=toAr(kpiTotal);
-}
-
-function updateTabBadges(){
-  document.getElementById("tabBadge0").textContent=toAr(STATE.goals.length);
-  document.getElementById("tabBadge1").textContent=toAr(STATE.portfolios.flatMap(p=>p.initiatives||[]).length);
-  document.getElementById("tabBadge2").textContent=toAr(STATE.oper_goals.length);
-}
-
-/* ============================================================
-   RENDER: IDENTITY
-   ============================================================ */
-function renderIdentity(){
-  const id=STATE.identity;
-  const btn=document.getElementById("editIdentityBtn");
-  btn.style.display=ADMIN_MODE?"":"none";
-  document.getElementById("identityView").innerHTML=`
-    <div class="id-card${id.vision?"":" empty"}">
-      <div class="id-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M2 12h4M18 12h4M12 2v4M12 18v4"/></svg>الرؤية</div>
-      <div class="id-val">${esc(id.vision)||"لم تُحدَّد الرؤية بعد"}</div>
-    </div>
-    <div class="id-card${id.mission?"":" empty"}">
-      <div class="id-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M9 9h6M9 13h6M9 17h4"/></svg>الرسالة</div>
-      <div class="id-val">${esc(id.mission)||"لم تُحدَّد الرسالة بعد"}</div>
-    </div>
-    <div class="values-wrap">
-      <div class="id-card" style="width:100%;border-color:var(--line)">
-        <div class="id-lbl"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l3 6.5h7l-5.5 4 2 7L12 16l-6.5 3.5 2-7L2 8.5h7z"/></svg>القيم</div>
-        ${(id.values||[]).length ? `<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px">${(id.values).map(v=>`<span class="val-chip"><i></i>${esc(v)}</span>`).join("")}</div>` : `<div class="id-val" style="color:#aab5c4;font-style:italic">لم تُحدَّد القيم بعد</div>`}
-      </div>
-    </div>`;
-}
-
-/* ============================================================
-   RENDER: PILLARS
-   ============================================================ */
-function renderPillars(){
-  const addBtn=document.getElementById("addPillarBtn");
-  addBtn.style.display=ADMIN_MODE?"":"none";
-  const grid=document.getElementById("pillarsGrid");
-  if(!STATE.pillars.length && !ADMIN_MODE){
-    grid.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>لا توجد ركائز بعد</div>`;
-    return;
-  }
-  const colors=["#0D3B6B","#179C7C","#C9A24B","#e0824b","#5b6b7e","#2ECC8F"];
-  grid.innerHTML=STATE.pillars.map((p,i)=>`
-    <div class="pillar-card" onclick="editPillar('${p.id}')">
-      <div class="pillar-strip" style="background:${colors[i%colors.length]}"></div>
-      <div class="pc-num">الركيزة ${toAr(i+1)}</div>
-      <div class="pc-name">${esc(p.name)}</div>
-      <div class="pc-axes">${(p.axes||[]).map(a=>`<span class="ax-chip">${esc(a.name||a)}</span>`).join("")||`<span style="font-size:11px;color:#aab5c4">لا توجد محاور</span>`}</div>
-    </div>`).join("")+
-    (ADMIN_MODE?`<div class="add-card" onclick="showAddPillar()"><div class="plus">+</div><b>ركيزة جديدة</b><span>أضف ركيزة استراتيجية</span></div>`:"");
-}
-
-/* ============================================================
-   RENDER: ORIENTATIONS
-   ============================================================ */
-function renderOrientations(){
-  const addBtn=document.getElementById("addOrientBtn");
-  addBtn.style.display=ADMIN_MODE?"":"none";
-  const list=document.getElementById("orientList");
-  if(!STATE.orientations.length){
-    list.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>لا توجد توجهات بعد</div>`;
-    return;
-  }
-  list.innerHTML=`<div class="orient-list">${STATE.orientations.map((o,i)=>`
-    <div class="orient-row">
-      <span class="or-n">${toAr(i+1)}</span>
-      <span class="or-txt">${esc(o.name||o)}</span>
-      ${ADMIN_MODE?`<div class="or-actions"><button class="ebtn sm danger" onclick="delOrient('${o.id||i}')" type="button">حذف</button></div>`:""}
-    </div>`).join("")}</div>`;
-}
-
-/* ============================================================
-   RENDER: GOALS
-   ============================================================ */
-function renderGoals(){
-  const addBtn=document.getElementById("addGoalBtn");
-  addBtn.style.display=ADMIN_MODE?"":"none";
-  const tree=document.getElementById("goalsTree");
-  const generals=STATE.goals.filter(g=>g.type==="general");
-  if(!generals.length){
-    tree.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="9"/></svg>لا توجد أهداف استراتيجية بعد</div>`;
-    return;
-  }
-  tree.innerHTML=generals.map((g,gi)=>{
-    const subs=STATE.goals.filter(s=>s.parent_id===g.id && s.type==="sub");
-    const avgKpi=kpiAvg(g.kpis);
-    const pillar=STATE.pillars.find(p=>p.id===g.pillar_id);
-    return `
-    <div class="goal-card" id="gc-${g.id}">
-      <div class="gc-head" onclick="toggleGoal('${g.id}')">
-        <div class="gc-num">${toAr(gi+1)}</div>
-        <div class="gc-name">${esc(g.name)}${pillar?`<div style="font-size:11px;font-weight:500;color:var(--teal);margin-top:3px">${esc(pillar.name)}</div>`:""}</div>
-        <div class="gc-meta">
-          <span class="gc-pct">${toAr(avgKpi)}%</span>
-          ${statusPill(calcStatus(avgKpi,""))}
-          ${ADMIN_MODE?`<button class="ebtn sm" onclick="event.stopPropagation();editGoal('${g.id}')" type="button">تعديل</button><button class="ebtn sm danger" onclick="event.stopPropagation();delGoal('${g.id}')" type="button">حذف</button>`:""}
-        </div>
-      </div>
-      <div class="gc-body">
-        <div class="gc-bar"><span style="width:${avgKpi}%"></span></div>
-        ${kpiTable(g.kpis,g.id,ADMIN_MODE)}
-        ${subs.length?`
-        <div style="margin-top:14px">
-          <div style="font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:8px">الأهداف الفرعية:</div>
-          ${subs.map(s=>{
-            const dets=STATE.goals.filter(d=>d.parent_id===s.id && d.type==="detailed");
-            return `
-            <div class="sub-goal" id="sg-${s.id}">
-              <div class="sg-head" onclick="toggleSubGoal('${s.id}')">
-                <div class="sg-dot"></div>
-                <div class="sg-name">${esc(s.name)}</div>
-                ${ADMIN_MODE?`<button class="ebtn sm" onclick="event.stopPropagation();editGoal('${s.id}')" type="button">تعديل</button><button class="ebtn sm danger" onclick="event.stopPropagation();delGoal('${s.id}')" type="button">حذف</button>`:""}
-              </div>
-              <div class="sg-body">
-                ${kpiTable(s.kpis,s.id,ADMIN_MODE)}
-                ${dets.length?`
-                  <div style="font-size:12px;font-weight:700;color:var(--muted);margin:10px 0 6px">الأهداف التفصيلية:</div>
-                  ${dets.map(d=>`
-                  <div class="det-goal">
-                    <div class="dg-bullet"></div>
-                    <div class="dg-name">${esc(d.name)}</div>
-                    ${ADMIN_MODE?`<button class="ebtn sm danger" onclick="delGoal('${d.id}')" type="button">حذف</button>`:""}
-                  </div>`).join("")}`:""}
-                ${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddSubGoal('${g.id}','${s.id}','detailed')" type="button" style="margin-top:8px">+ هدف تفصيلي</button>`:""}
-              </div>
-            </div>`;
-          }).join("")}
-        </div>`:""}
-        ${ADMIN_MODE?`<div style="display:flex;gap:8px;margin-top:12px">
-          <button class="ebtn sm" onclick="showAddSubGoal('${g.id}',null,'sub')" type="button">+ هدف فرعي</button>
-          <button class="ebtn sm" onclick="showAddKpi('goal','${g.id}')" type="button">+ مؤشر KPI</button>
-        </div>`:""}
-      </div>
-    </div>`;
-  }).join("");
-}
-
-function toggleGoal(id){
-  const el=document.getElementById("gc-"+id);
-  if(el) el.classList.toggle("open");
-}
-function toggleSubGoal(id){
-  const el=document.getElementById("sg-"+id);
-  if(el) el.classList.toggle("open");
-}
-function kpiAvg(kpis){
-  if(!kpis||!kpis.length) return 0;
-  return Math.round(kpis.reduce((s,k)=>s+Math.min(100,(+k.actual||0)/(+k.target||1)*100),0)/kpis.length);
-}
-function kpiTable(kpis,parentId,admin){
-  if(!kpis||!kpis.length) return admin?`<div style="color:#aab5c4;font-size:12px;margin-bottom:6px">لا توجد مؤشرات</div>`:"";
-  return `<table class="kpi-tbl"><thead><tr><th>المؤشر</th><th>المستهدف</th><th>الفعلي</th><th>نسبة الإنجاز</th>${admin?"<th></th>":""}</tr></thead>
-  <tbody>${kpis.map(k=>{
-    const pct=Math.min(100,Math.round((+k.actual||0)/(+k.target||1)*100));
-    return `<tr><td class="kn">${esc(k.name)}</td><td>${esc(k.target)} ${esc(k.unit||"")}</td><td class="kv">${esc(k.actual)} ${esc(k.unit||"")}</td>
-    <td><div class="kprog"><div class="kbar"><div class="kfill" style="width:${pct}%"></div></div><span style="font-size:12px;font-weight:700;color:var(--navy);min-width:36px">${toAr(pct)}%</span></div></td>
-    ${admin?`<td><button class="ebtn sm danger" onclick="delKpi('${parentId}','${k.id}')" type="button">حذف</button></td>`:""}</tr>`;
-  }).join("")}</tbody></table>`;
-}
-
-/* ============================================================
-   RENDER: PORTFOLIOS
-   ============================================================ */
-function renderPortfolios(){
-  const addBtn=document.getElementById("addPortfolioBtn");
-  addBtn.style.display=ADMIN_MODE?"":"none";
-  const el=document.getElementById("portfoliosList");
-  if(!STATE.portfolios.length){
-    el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6z"/></svg>لا توجد محافظ بعد</div>`;
-    return;
-  }
-  el.innerHTML=STATE.portfolios.map(pf=>{
-    const inits=pf.initiatives||[];
-    const avgPct=inits.length?Math.round(inits.reduce((s,i)=>s+(+i.pct||0),0)/inits.length):0;
-    return `
-    <div class="portfolio-card">
-      <div class="pf-head">
-        <div class="pf-name">${esc(pf.name)}</div>
-        <div class="pf-stats">${toAr(inits.length)} مبادرة · ${toAr(avgPct)}% إنجاز</div>
-        ${ADMIN_MODE?`<button class="ebtn sm" style="background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)" onclick="editPortfolio('${pf.id}')" type="button">تعديل</button>
-        <button class="ebtn sm danger" style="background:rgba(255,100,80,.2);color:#fff;border-color:rgba(255,100,80,.3)" onclick="delPortfolio('${pf.id}')" type="button">حذف</button>`:""}
-      </div>
-      <div class="pf-body">
-        ${inits.map(ini=>{
-          const pct=+ini.pct||0;
-          const st=calcStatus(pct,ini.end);
-          return `
-          <div class="initiative-row" onclick="showInitiativeDetail('${pf.id}','${ini.id}')">
-            <div class="ir-top">
-              <div class="ir-name">${esc(ini.name)}</div>
-              ${statusPill(st)}
-              <span class="ir-pct">${toAr(pct)}%</span>
-              ${ADMIN_MODE?`<button class="ebtn sm" onclick="event.stopPropagation();editInitiative('${pf.id}','${ini.id}')" type="button">تعديل</button>
-              <button class="ebtn sm danger" onclick="event.stopPropagation();delInitiative('${pf.id}','${ini.id}')" type="button">حذف</button>`:""}
-            </div>
-            <div class="ir-bar"><div class="ir-fill" style="width:${pct}%"></div></div>
-            <div class="ir-meta">
-              ${ini.owner?`<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>${esc(ini.owner)}</span>`:""}
-              ${ini.start?`<span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${fmtDate(ini.start)}</span>`:""}
-              ${ini.end?`<span>← ${fmtDate(ini.end)}</span>`:""}
-            </div>
-          </div>`;
-        }).join("")}
-        ${ADMIN_MODE?`<div class="add-card" style="min-height:72px;margin-top:8px" onclick="showAddInitiative('${pf.id}')"><div class="plus" style="font-size:22px">+</div><b>مبادرة جديدة</b></div>`:""}
-      </div>
-    </div>`;
-  }).join("")+
-  (ADMIN_MODE?`<div class="add-card" onclick="showAddPortfolio()"><div class="plus">+</div><b>محفظة جديدة</b><span>أضف محفظة استراتيجية</span></div>`:"");
-}
-
-/* ============================================================
-   RENDER: EXEC PLANS
-   ============================================================ */
-function renderExecPlans(){
-  const addBtn=document.getElementById("addExecPlanBtn");
-  addBtn.style.display=ADMIN_MODE?"":"none";
-  const el=document.getElementById("execPlansList");
-  if(!STATE.exec_plans.length){
-    el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>لا توجد خطط تنفيذية بعد</div>`;
-    return;
-  }
-  el.innerHTML=STATE.exec_plans.map(ep=>`
-    <div class="ep-card">
-      <div class="ep-head">
-        ${ep.year?`<span class="ep-year">${esc(ep.year)}</span>`:""}
-        <span class="ep-name">${esc(ep.name)}</span>
-        ${ADMIN_MODE?`<button class="ebtn sm danger" onclick="delExecPlan('${ep.id}')" type="button" style="margin-right:auto">حذف</button>`:""}
-      </div>
-      ${(ep.objectives||[]).map(obj=>`
-        <div class="ep-obj">
-          <div class="eo-dot"></div>
-          <div class="eo-txt">${esc(obj.name)}
-            ${obj.goal_id?(()=>{const g=STATE.goals.find(x=>x.id===obj.goal_id);return g?`<div style="font-size:11px;color:var(--teal);margin-top:2px">← ${esc(g.name)}</div>`:""})():""}
-          </div>
-          ${ADMIN_MODE?`<button class="ebtn sm danger" onclick="delExecObj('${ep.id}','${obj.id}')" type="button">حذف</button>`:""}
-        </div>`).join("")}
-      ${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddExecObj('${ep.id}')" type="button" style="margin-top:10px">+ هدف تنفيذي</button>`:""}
-    </div>`).join("");
-}
-
-/* ============================================================
-   RENDER: OPERATIONAL GOALS
-   ============================================================ */
-function renderOperGoals(){
-  const addBtn=document.getElementById("addOperGoalBtn");
-  addBtn.style.display=ADMIN_MODE?"":"none";
-  const el=document.getElementById("operGoalsList");
-  if(!STATE.oper_goals.length){
-    el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>لا توجد أهداف تشغيلية بعد</div>`;
-    return;
-  }
-  el.innerHTML=STATE.oper_goals.map((og,i)=>`
-    <div class="oper-card">
-      <div class="oc-head">
-        <div class="oc-num">${toAr(i+1)}</div>
-        <div class="oc-name">${esc(og.name)}</div>
-        ${ADMIN_MODE?`<button class="ebtn sm" onclick="editOperGoal('${og.id}')" type="button">تعديل</button>
-        <button class="ebtn sm danger" onclick="delOperGoal('${og.id}')" type="button">حذف</button>`:""}
-      </div>
-      ${kpiTable(og.kpis,og.id,ADMIN_MODE)}
-      ${(og.programs||[]).length?`
-      <div style="margin-top:14px">
-        <div style="font-size:12.5px;font-weight:700;color:var(--navy);margin-bottom:8px">البرامج:</div>
-        ${(og.programs).map(pr=>`
-          <div class="prog-row">
-            <div class="pr-name">${esc(pr.name)}</div>
-            <div style="display:flex;flex-wrap:wrap">
-              ${(pr.tasks||[]).map(t=>`<span class="task-chip ${t.status||""}">${esc(t.name)}</span>`).join("")}
-            </div>
-            ${ADMIN_MODE?`<div style="margin-top:8px;display:flex;gap:6px">
-              <button class="ebtn sm" onclick="showAddTask('${og.id}','${pr.id}')" type="button">+ مهمة</button>
-              <button class="ebtn sm danger" onclick="delProgram('${og.id}','${pr.id}')" type="button">حذف البرنامج</button>
-            </div>`:""}
-          </div>`).join("")}
-      </div>`:""}
-      ${ADMIN_MODE?`<div style="display:flex;gap:8px;margin-top:12px">
-        <button class="ebtn sm" onclick="showAddProgram('${og.id}')" type="button">+ برنامج</button>
-        <button class="ebtn sm" onclick="showAddKpi('oper','${og.id}')" type="button">+ مؤشر KPI</button>
-      </div>`:""}
-    </div>`).join("");
-}
-
-/* ============================================================
-   ADMIN MODE + AUTH
-   ============================================================ */
-const ICON_LOCK=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>`;
-const ICON_EYE=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>`;
-function setAdminBtn(state){
-  const b=document.getElementById("adminToggle");
-  if(state==="login"){ b.innerHTML=ICON_LOCK+"تسجيل الدخول"; b.classList.remove("on"); }
-  else if(state==="admin"){ b.innerHTML=ICON_LOCK+"وضع الإدارة"; b.classList.add("on"); }
-  else { b.innerHTML=ICON_EYE+"وضع القراءة"; b.classList.remove("on"); }
-}
-document.getElementById("adminToggle").addEventListener("click",()=>{
-  if(!SESSION){ showAuth(); return; }
-  ADMIN_MODE=!ADMIN_MODE;
-  setAdminBtn(ADMIN_MODE?"admin":"read");
-  document.getElementById("adminBanner").style.display=ADMIN_MODE?"flex":"none";
-  if(SESSION.role==="owner") document.getElementById("manageUsersBtn").style.display=ADMIN_MODE?"":"none";
-  renderAll();
-});
-document.getElementById("logoutBtn").addEventListener("click",()=>{
-  SESSION=null; ADMIN_MODE=false;
-  document.getElementById("logoutBtn").style.display="none";
-  document.getElementById("adminBanner").style.display="none";
-  setAdminBtn("login");
-  renderAll();
-  toast("تم تسجيل الخروج");
-});
-document.getElementById("saveAllBtn").addEventListener("click",saveAll);
-document.getElementById("addGoalBtn").addEventListener("click",()=>showAddGoal());
-document.getElementById("addPillarBtn").addEventListener("click",showAddPillar);
-document.getElementById("addOrientBtn").addEventListener("click",showAddOrient);
-document.getElementById("addPortfolioBtn").addEventListener("click",showAddPortfolio);
-document.getElementById("addExecPlanBtn").addEventListener("click",showAddExecPlan);
-document.getElementById("addOperGoalBtn").addEventListener("click",showAddOperGoal);
-
-function showAuth(){
-  document.getElementById("authOv").classList.add("show");
-  document.getElementById("lgUser").focus();
-}
-document.getElementById("lgBtn").addEventListener("click",async()=>{
-  const u=document.getElementById("lgUser").value.trim();
-  const p=document.getElementById("lgPass").value;
-  if(!u||!p){ document.getElementById("lgErr").textContent="أدخل الاسم وكلمة المرور"; return; }
-  document.getElementById("lgBtn").textContent="جارٍ التحقق…";
-  const res=await apiPost({action:"login",username:u,password:p});
-  document.getElementById("lgBtn").textContent="دخول";
-  if(res.err){ document.getElementById("lgErr").textContent=res.err; return; }
-  SESSION={role:res.role,username:u,password:p,_users:res.users||[]};
-  document.getElementById("authOv").classList.remove("show");
-  document.getElementById("lgUser").value="";document.getElementById("lgPass").value="";
-  document.getElementById("lgErr").textContent="";
-  ADMIN_MODE=true;
-  setAdminBtn("admin");
-  document.getElementById("logoutBtn").style.display="";
-  document.getElementById("adminBanner").style.display="flex";
-  document.getElementById("abWho").innerHTML=`<b>وضع الإدارة مُفعّل</b> — ${esc(res.username)} (${res.role==="owner"?"المالك":"مستخدم"})`;
-  if(res.role==="owner") document.getElementById("manageUsersBtn").style.display="";
-  renderAll();
-  toast("مرحباً "+esc(res.username)+" ✓");
-});
-document.getElementById("lgPass").addEventListener("keydown",e=>{ if(e.key==="Enter") document.getElementById("lgBtn").click(); });
-
-/* ============================================================
-   TABS
-   ============================================================ */
-document.querySelectorAll(".ltab").forEach(btn=>{
-  btn.addEventListener("click",()=>{
-    document.querySelectorAll(".ltab").forEach(b=>b.classList.remove("on"));
-    btn.classList.add("on");
-    const t=btn.dataset.tab;
-    document.getElementById("paneStrategic").style.display=t==="strategic"?"":"none";
-    document.getElementById("paneExecutive").style.display=t==="executive"?"":"none";
-    document.getElementById("paneOperational").style.display=t==="operational"?"":"none";
-  });
-});
-
-/* ============================================================
-   MODAL HELPERS
-   ============================================================ */
-const overlay=document.getElementById("overlay");
-const modal=document.getElementById("modal");
-function openModal(title,bodyHTML,onSave){
-  modal.innerHTML=`<div class="mh" style="position:relative"><h3>${title}</h3>
-    <button class="close" onclick="closeModal()" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-  </div><div class="mb">${bodyHTML}</div>`;
-  overlay.classList.add("show");
-  if(onSave) window._modalSave=onSave;
-}
-function closeModal(){ overlay.classList.remove("show"); window._modalSave=null; }
-overlay.addEventListener("click",e=>{ if(e.target===overlay) closeModal(); });
-
-/* ============================================================
-   IDENTITY EDIT
-   ============================================================ */
-document.getElementById("editIdentityBtn").addEventListener("click",()=>{
-  const id=STATE.identity;
-  openModal("تعديل الهوية الاستراتيجية",`
-    <div class="eform">
-      <div class="fl"><label>الرؤية</label><textarea id="fVision" rows="3">${esc(id.vision)}</textarea></div>
-      <div class="fl"><label>الرسالة</label><textarea id="fMission" rows="3">${esc(id.mission)}</textarea></div>
-      <div class="fl"><label>القيم (اكتب قيمة ثم اضغط Enter أو فاصلة)</label>
-        <div class="tag-builder" id="valuesBuilder">
-          ${(id.values||[]).map(v=>`<span class="tag-item">${esc(v)}<span class="tx" onclick="removeTag(this)">×</span></span>`).join("")}
-          <input type="text" id="valInput" placeholder="أضف قيمة…">
-        </div>
-      </div>
-      <div class="faprow">
-        <button class="ebtn primary" onclick="saveIdentity()" type="button">حفظ</button>
-        <button class="ebtn" onclick="closeModal()" type="button">إلغاء</button>
-      </div>
-    </div>`);
-  document.getElementById("valInput").addEventListener("keydown",e=>{
-    if(e.key==="Enter"||e.key===","){ e.preventDefault(); addTag(); }
-  });
-});
-function addTag(){
-  const inp=document.getElementById("valInput");
-  const v=inp.value.trim().replace(/,$/,"");
-  if(!v) return;
-  const b=document.getElementById("valuesBuilder");
-  const span=document.createElement("span");
-  span.className="tag-item";
-  span.innerHTML=`${esc(v)}<span class="tx" onclick="removeTag(this)">×</span>`;
-  b.insertBefore(span,inp);
-  inp.value="";
-}
-function removeTag(el){ el.closest(".tag-item").remove(); }
-function saveIdentity(){
-  addTag();
-  const vals=Array.from(document.querySelectorAll("#valuesBuilder .tag-item")).map(s=>s.childNodes[0].textContent.trim());
-  STATE.identity={vision:document.getElementById("fVision").value.trim(),mission:document.getElementById("fMission").value.trim(),values:vals};
-  closeModal();renderIdentity();
-}
-
-/* ============================================================
-   PILLAR CRUD
-   ============================================================ */
-function pillarForm(p){
-  const axes=(p&&p.axes||[]).map(a=>a.name||a).join("، ");
-  return `<div class="eform">
-    <div class="fl"><label>اسم الركيزة</label><input id="fPillarName" value="${esc(p?p.name:"")}"></div>
-    <div class="fl"><label>المحاور (مفصولة بفاصلة أو سطر جديد)</label><textarea id="fAxes" rows="3">${esc(axes)}</textarea></div>
-    <div class="faprow">
-      <button class="ebtn primary" onclick="savePillar(${p?`'${p.id}'`:null})" type="button">حفظ</button>
-      <button class="ebtn" onclick="closeModal()" type="button">إلغاء</button>
-    </div>
-  </div>`;
-}
-function showAddPillar(){ openModal("إضافة ركيزة استراتيجية",pillarForm(null)); }
-function editPillar(id){ if(!ADMIN_MODE) return; const p=STATE.pillars.find(x=>x.id===id); openModal("تعديل الركيزة",pillarForm(p)); }
-function savePillar(id){
-  const name=document.getElementById("fPillarName").value.trim();
-  const axes=document.getElementById("fAxes").value.split(/[،,\n]+/).map(s=>s.trim()).filter(Boolean).map(n=>({id:uid(),name:n}));
-  if(!name) return;
-  if(id){ const p=STATE.pillars.find(x=>x.id===id); if(p){p.name=name;p.axes=axes;} }
-  else STATE.pillars.push({id:uid(),name,axes});
-  closeModal();renderPillars();
-}
-function delPillar(id){ if(!confirm("حذف هذه الركيزة؟")) return; STATE.pillars=STATE.pillars.filter(p=>p.id!==id); renderPillars(); }
-
-/* ============================================================
-   ORIENTATION CRUD
-   ============================================================ */
-function showAddOrient(){
-  openModal("إضافة توجه / تطلع",`<div class="eform">
-    <div class="fl"><label>نص التوجه</label><input id="fOrient" placeholder="أدخل التوجه الاستراتيجي…"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="saveOrient()" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fOrient").focus();
-}
-function saveOrient(){
-  const name=document.getElementById("fOrient").value.trim();
-  if(!name) return;
-  STATE.orientations.push({id:uid(),name});
-  closeModal();renderOrientations();
-}
-function delOrient(id){ STATE.orientations=STATE.orientations.filter(o=>o.id!==id && o!==id); renderOrientations(); }
-
-/* ============================================================
-   GOAL CRUD
-   ============================================================ */
-function showAddGoal(){
-  const pillarOpts=STATE.pillars.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join("");
-  openModal("إضافة هدف استراتيجي عام",`<div class="eform">
-    <div class="fl"><label>اسم الهدف الاستراتيجي</label><input id="fGoalName" placeholder="الهدف الاستراتيجي…"></div>
-    ${pillarOpts?`<div class="fl"><label>الركيزة المرتبطة</label><select id="fGoalPillar"><option value="">— لا توجد ركيزة —</option>${pillarOpts}</select></div>`:""}
-    <div class="faprow"><button class="ebtn primary" onclick="saveGoal(null,'general',null)" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fGoalName").focus();
-}
-function showAddSubGoal(parentId,subId,type){
-  const label=type==="sub"?"هدف فرعي":"هدف تفصيلي";
-  openModal(`إضافة ${label}`,`<div class="eform">
-    <div class="fl"><label>اسم الهدف</label><input id="fGoalName" placeholder="${label}…"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="saveGoal('${parentId||""}','${type}','${subId||""}')" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fGoalName").focus();
-}
-function editGoal(id){
-  const g=STATE.goals.find(x=>x.id===id);if(!g) return;
-  openModal("تعديل الهدف",`<div class="eform">
-    <div class="fl"><label>الاسم</label><input id="fGoalName" value="${esc(g.name)}"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="updateGoalName('${id}')" type="button">حفظ</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-}
-function updateGoalName(id){
-  const g=STATE.goals.find(x=>x.id===id);
-  if(g) g.name=document.getElementById("fGoalName").value.trim();
-  closeModal();renderGoals();
-}
-function saveGoal(parentId,type,subParentId){
-  const name=document.getElementById("fGoalName").value.trim();
-  if(!name) return;
-  const pillarId=document.getElementById("fGoalPillar")?document.getElementById("fGoalPillar").value:null;
-  const pid = type==="detailed"? subParentId : parentId;
-  STATE.goals.push({id:uid(),name,type,parent_id:pid||null,pillar_id:pillarId||null,kpis:[]});
-  closeModal();renderGoals();
-}
-function delGoal(id){
-  if(!confirm("حذف هذا الهدف وكل ما يتبعه؟")) return;
-  const remove=ids=>{ ids.forEach(i=>{ const children=STATE.goals.filter(g=>g.parent_id===i).map(g=>g.id); remove(children); STATE.goals=STATE.goals.filter(g=>g.id!==i); }); };
-  remove([id]);
-  renderGoals();updateKPIs();updateTabBadges();
-}
-
-/* ============================================================
-   KPI CRUD
-   ============================================================ */
-function showAddKpi(scope,parentId){
-  openModal("إضافة مؤشر KPI",`<div class="eform">
-    <div class="fl"><label>اسم المؤشر</label><input id="fKpiName" placeholder="مثال: نسبة الرضا"></div>
-    <div class="frow">
-      <div class="fl"><label>المستهدف</label><input id="fKpiTarget" type="number" value="100"></div>
-      <div class="fl"><label>الفعلي</label><input id="fKpiActual" type="number" value="0"></div>
-    </div>
-    <div class="fl"><label>الوحدة</label><input id="fKpiUnit" value="%" placeholder="مثال: %، ريال، مشروع"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="saveKpi('${scope}','${parentId}')" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fKpiName").focus();
-}
-function saveKpi(scope,parentId){
-  const name=document.getElementById("fKpiName").value.trim();
-  const target=document.getElementById("fKpiTarget").value;
-  const actual=document.getElementById("fKpiActual").value;
-  const unit=document.getElementById("fKpiUnit").value.trim();
-  if(!name) return;
-  const kpi={id:uid(),name,target,actual,unit};
-  if(scope==="goal"){ const g=STATE.goals.find(x=>x.id===parentId); if(g){ if(!g.kpis) g.kpis=[]; g.kpis.push(kpi); } }
-  if(scope==="oper"){ const og=STATE.oper_goals.find(x=>x.id===parentId); if(og){ if(!og.kpis) og.kpis=[]; og.kpis.push(kpi); } }
-  if(scope==="init"){
-    const [pfId,initId]=parentId.split("__");
-    const pf=STATE.portfolios.find(x=>x.id===pfId);
-    const ini=pf&&(pf.initiatives||[]).find(x=>x.id===initId);
-    if(ini){ if(!ini.kpis) ini.kpis=[]; ini.kpis.push(kpi); }
-  }
-  closeModal();renderAll();updateKPIs();
-}
-function delKpi(parentId,kpiId){
-  const g=STATE.goals.find(x=>x.id===parentId);
-  if(g){ g.kpis=(g.kpis||[]).filter(k=>k.id!==kpiId); renderGoals();updateKPIs(); return; }
-  const og=STATE.oper_goals.find(x=>x.id===parentId);
-  if(og){ og.kpis=(og.kpis||[]).filter(k=>k.id!==kpiId); renderOperGoals();updateKPIs(); }
-}
-
-/* ============================================================
-   PORTFOLIO / INITIATIVE CRUD
-   ============================================================ */
-function showAddPortfolio(){
-  openModal("إضافة محفظة استراتيجية",`<div class="eform">
-    <div class="fl"><label>اسم المحفظة</label><input id="fPfName" placeholder="مثال: محفظة التحول الرقمي"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="savePortfolio(null)" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fPfName").focus();
-}
-function editPortfolio(id){
-  const pf=STATE.portfolios.find(x=>x.id===id);if(!pf) return;
-  openModal("تعديل المحفظة",`<div class="eform">
-    <div class="fl"><label>اسم المحفظة</label><input id="fPfName" value="${esc(pf.name)}"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="savePortfolio('${id}')" type="button">حفظ</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-}
-function savePortfolio(id){
-  const name=document.getElementById("fPfName").value.trim();if(!name) return;
-  if(id){ const pf=STATE.portfolios.find(x=>x.id===id); if(pf) pf.name=name; }
-  else STATE.portfolios.push({id:uid(),name,goal_ids:[],initiatives:[]});
-  closeModal();renderPortfolios();updateKPIs();updateTabBadges();
-}
-function delPortfolio(id){ if(!confirm("حذف المحفظة وكل مبادراتها؟")) return; STATE.portfolios=STATE.portfolios.filter(p=>p.id!==id); renderPortfolios();updateKPIs();updateTabBadges(); }
-
-function initiativeForm(ini){
-  return `<div class="eform">
-    <div class="fl"><label>اسم المبادرة</label><input id="fIniName" value="${esc(ini?ini.name:"")}"></div>
-    <div class="fl"><label>المسؤول / قائد المبادرة</label><input id="fIniOwner" value="${esc(ini?ini.owner:"")}"></div>
-    <div class="frow">
-      <div class="fl"><label>تاريخ البدء</label><input id="fIniStart" type="date" value="${esc(ini?ini.start:"")}"></div>
-      <div class="fl"><label>تاريخ الانتهاء</label><input id="fIniEnd" type="date" value="${esc(ini?ini.end:"")}"></div>
-    </div>
-    <div class="fl"><label>نسبة الإنجاز (٪)</label><input id="fIniPct" type="number" min="0" max="100" value="${ini?ini.pct:0}"></div>
-  </div>`;
-}
-function showAddInitiative(pfId){
-  openModal("إضافة مبادرة",`${initiativeForm(null)}<div class="faprow"><button class="ebtn primary" onclick="saveInitiative('${pfId}',null)" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>`);
-  document.getElementById("fIniName").focus();
-}
-function editInitiative(pfId,initId){
-  const pf=STATE.portfolios.find(x=>x.id===pfId);
-  const ini=pf&&(pf.initiatives||[]).find(x=>x.id===initId);
-  if(!ini) return;
-  openModal("تعديل المبادرة",`${initiativeForm(ini)}<div class="faprow"><button class="ebtn primary" onclick="saveInitiative('${pfId}','${initId}')" type="button">حفظ</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>`);
-}
-function saveInitiative(pfId,initId){
-  const name=document.getElementById("fIniName").value.trim();if(!name) return;
-  const ini={name,owner:document.getElementById("fIniOwner").value.trim(),
-    start:document.getElementById("fIniStart").value,end:document.getElementById("fIniEnd").value,
-    pct:Math.min(100,Math.max(0,+document.getElementById("fIniPct").value||0)),kpis:[]};
-  const pf=STATE.portfolios.find(x=>x.id===pfId);if(!pf) return;
-  if(!pf.initiatives) pf.initiatives=[];
-  if(initId){ const i=pf.initiatives.find(x=>x.id===initId); if(i){Object.assign(i,ini);} }
-  else pf.initiatives.push({id:uid(),...ini});
-  closeModal();renderPortfolios();updateKPIs();updateTabBadges();
-}
-function delInitiative(pfId,initId){
-  const pf=STATE.portfolios.find(x=>x.id===pfId);
-  if(pf) pf.initiatives=(pf.initiatives||[]).filter(i=>i.id!==initId);
-  renderPortfolios();updateKPIs();updateTabBadges();
-}
-function showInitiativeDetail(pfId,initId){
-  const pf=STATE.portfolios.find(x=>x.id===pfId);
-  const ini=pf&&(pf.initiatives||[]).find(x=>x.id===initId);
-  if(!ini) return;
-  const pct=+ini.pct||0;
-  const st=calcStatus(pct,ini.end);
-  openModal(`مبادرة: ${esc(ini.name)}`,`
-    <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
-      <div style="text-align:center;flex:0 0 auto">
-        <div style="font-size:28px;font-weight:700;color:var(--navy)">${toAr(pct)}%</div>
-        <div style="font-size:12px;color:var(--muted)">نسبة الإنجاز</div>
-      </div>
-      ${statusPill(st)}
-    </div>
-    <div style="height:8px;border-radius:99px;background:#eef2f7;overflow:hidden;margin-bottom:16px">
-      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--teal),var(--green));border-radius:99px"></div>
-    </div>
-    ${ini.owner?`<div style="font-size:13px;color:var(--muted);margin-bottom:8px">المسؤول: <b style="color:var(--navy)">${esc(ini.owner)}</b></div>`:""}
-    ${ini.start||ini.end?`<div style="font-size:13px;color:var(--muted);margin-bottom:14px">${ini.start?`من ${fmtDate(ini.start)}`:""}${ini.end?` إلى ${fmtDate(ini.end)}`:""}</div>`:""}
-    <div class="kpi-sec-head"><span>مؤشرات الأداء (KPIs)</span>${ADMIN_MODE?`<button class="ebtn sm" onclick="showAddKpi('init','${pfId}__${initId}')" type="button">+ مؤشر</button>`:""}</div>
-    ${kpiTable(ini.kpis,pfId+"__"+initId,ADMIN_MODE)||`<div style="color:#aab5c4;font-size:12px">لا توجد مؤشرات</div>`}
-  `);
-}
-
-/* ============================================================
-   EXEC PLANS CRUD
-   ============================================================ */
-function showAddExecPlan(){
-  openModal("إضافة خطة تنفيذية",`<div class="eform">
-    <div class="fl"><label>اسم الخطة</label><input id="fEpName" placeholder="مثال: الخطة التنفيذية السنوية"></div>
-    <div class="fl"><label>السنة</label><input id="fEpYear" placeholder="مثال: 2026" value="${new Date().getFullYear()}"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="saveExecPlan()" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fEpName").focus();
-}
-function saveExecPlan(){
-  const name=document.getElementById("fEpName").value.trim();if(!name) return;
-  STATE.exec_plans.push({id:uid(),name,year:document.getElementById("fEpYear").value.trim(),objectives:[]});
-  closeModal();renderExecPlans();
-}
-function delExecPlan(id){ if(!confirm("حذف الخطة التنفيذية؟")) return; STATE.exec_plans=STATE.exec_plans.filter(e=>e.id!==id); renderExecPlans(); }
-function showAddExecObj(epId){
-  const goalOpts=STATE.goals.filter(g=>g.type==="general").map(g=>`<option value="${g.id}">${esc(g.name)}</option>`).join("");
-  openModal("إضافة هدف تنفيذي",`<div class="eform">
-    <div class="fl"><label>الهدف التنفيذي</label><input id="fEoName" placeholder="الهدف التنفيذي…"></div>
-    ${goalOpts?`<div class="fl"><label>الهدف الاستراتيجي المرتبط</label><select id="fEoGoal"><option value="">— غير مرتبط —</option>${goalOpts}</select></div>`:""}
-    <div class="faprow"><button class="ebtn primary" onclick="saveExecObj('${epId}')" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fEoName").focus();
-}
-function saveExecObj(epId){
-  const name=document.getElementById("fEoName").value.trim();if(!name) return;
-  const goalId=document.getElementById("fEoGoal")?document.getElementById("fEoGoal").value:"";
-  const ep=STATE.exec_plans.find(e=>e.id===epId);if(!ep) return;
-  if(!ep.objectives) ep.objectives=[];
-  ep.objectives.push({id:uid(),name,goal_id:goalId||null});
-  closeModal();renderExecPlans();
-}
-function delExecObj(epId,objId){
-  const ep=STATE.exec_plans.find(e=>e.id===epId);
-  if(ep) ep.objectives=(ep.objectives||[]).filter(o=>o.id!==objId);
-  renderExecPlans();
-}
-
-/* ============================================================
-   OPERATIONAL CRUD
-   ============================================================ */
-function showAddOperGoal(){
-  openModal("إضافة هدف تشغيلي",`<div class="eform">
-    <div class="fl"><label>اسم الهدف التشغيلي</label><input id="fOgName" placeholder="الهدف التشغيلي…"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="saveOperGoal(null)" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fOgName").focus();
-}
-function editOperGoal(id){
-  const og=STATE.oper_goals.find(x=>x.id===id);if(!og) return;
-  openModal("تعديل الهدف التشغيلي",`<div class="eform">
-    <div class="fl"><label>الاسم</label><input id="fOgName" value="${esc(og.name)}"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="saveOperGoal('${id}')" type="button">حفظ</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-}
-function saveOperGoal(id){
-  const name=document.getElementById("fOgName").value.trim();if(!name) return;
-  if(id){ const og=STATE.oper_goals.find(x=>x.id===id); if(og) og.name=name; }
-  else STATE.oper_goals.push({id:uid(),name,kpis:[],programs:[]});
-  closeModal();renderOperGoals();updateTabBadges();
-}
-function delOperGoal(id){ if(!confirm("حذف الهدف التشغيلي؟")) return; STATE.oper_goals=STATE.oper_goals.filter(o=>o.id!==id); renderOperGoals();updateTabBadges(); }
-function showAddProgram(ogId){
-  openModal("إضافة برنامج",`<div class="eform">
-    <div class="fl"><label>اسم البرنامج</label><input id="fProgName" placeholder="البرنامج…"></div>
-    <div class="faprow"><button class="ebtn primary" onclick="saveProgram('${ogId}')" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fProgName").focus();
-}
-function saveProgram(ogId){
-  const name=document.getElementById("fProgName").value.trim();if(!name) return;
-  const og=STATE.oper_goals.find(x=>x.id===ogId);if(!og) return;
-  if(!og.programs) og.programs=[];
-  og.programs.push({id:uid(),name,tasks:[]});
-  closeModal();renderOperGoals();
-}
-function delProgram(ogId,progId){
-  const og=STATE.oper_goals.find(x=>x.id===ogId);
-  if(og) og.programs=(og.programs||[]).filter(p=>p.id!==progId);
-  renderOperGoals();
-}
-function showAddTask(ogId,progId){
-  openModal("إضافة مهمة / مشروع",`<div class="eform">
-    <div class="fl"><label>اسم المهمة أو المشروع</label><input id="fTaskName" placeholder="المهمة…"></div>
-    <div class="fl"><label>الحالة</label>
-      <select id="fTaskStatus">
-        <option value="none">لم تبدأ</option>
-        <option value="todo">جارية</option>
-        <option value="done">مكتملة</option>
-        <option value="late">متأخرة</option>
-      </select>
-    </div>
-    <div class="faprow"><button class="ebtn primary" onclick="saveTask('${ogId}','${progId}')" type="button">إضافة</button><button class="ebtn" onclick="closeModal()" type="button">إلغاء</button></div>
-  </div>`);
-  document.getElementById("fTaskName").focus();
-}
-function saveTask(ogId,progId){
-  const name=document.getElementById("fTaskName").value.trim();if(!name) return;
-  const status=document.getElementById("fTaskStatus").value;
-  const og=STATE.oper_goals.find(x=>x.id===ogId);
-  const prog=og&&(og.programs||[]).find(x=>x.id===progId);
-  if(!prog) return;
-  if(!prog.tasks) prog.tasks=[];
-  prog.tasks.push({id:uid(),name,status});
-  closeModal();renderOperGoals();
-}
-
-/* ============================================================
-   USERS MODAL
-   ============================================================ */
-function showUsersModal(){
-  openModal("إدارة المستخدمين",`
-    <div id="usersList"></div>
-    <button class="ebtn sm" id="addUserBtn" type="button" onclick="addUserRow()">+ إضافة مستخدم</button>
-    <div class="faprow" style="margin-top:14px">
-      <button class="ebtn primary" onclick="saveUsers()" type="button">حفظ المستخدمين</button>
-      <button class="ebtn" onclick="closeModal()" type="button">إلغاء</button>
-    </div>`);
-  renderUsersList();
-}
-let _usersTemp=[];
-function renderUsersList(){
-  const el=document.getElementById("usersList");if(!el) return;
-  el.innerHTML=_usersTemp.map((u,i)=>`
-    <div class="urow">
-      <input class="uin" placeholder="اسم المستخدم" value="${esc(u.username)}" oninput="_usersTemp[${i}].username=this.value">
-      <input class="uin" type="password" placeholder="${u.hash?"اتركها فارغة للإبقاء على كلمة المرور":"كلمة المرور"}" oninput="_usersTemp[${i}].newpass=this.value">
-      <button class="ebtn sm danger" onclick="_usersTemp.splice(${i},1);renderUsersList()" type="button">حذف</button>
-    </div>`).join("")||`<div style="color:#aab5c4;font-size:13px;padding:8px">لا يوجد مستخدمون</div>`;
-}
-function addUserRow(){ _usersTemp.push({username:"",newpass:"",hash:""}); renderUsersList(); }
-async function saveUsers(){
-  const users=_usersTemp.filter(u=>u.username.trim());
-  // كلمة مرور جديدة إن أُدخلت، وإلا نُبقي الهاش الحالي (للمستخدمين القائمين)
-  const payload=users.map(u=>({username:u.username.trim(),password:u.newpass?u.newpass:(u.hash||u.username.trim())}));
-  const res=await apiPost({action:"saveUsers",username:SESSION.username,password:SESSION.password,users:payload});
-  if(res.err){toast(res.err,"err");return;}
-  if(SESSION) SESSION._users=res.users||[];
-  closeModal();toast("تم حفظ المستخدمين ✓");
-}
-document.getElementById("manageUsersBtn").addEventListener("click",()=>{
-  _usersTemp=(SESSION&&SESSION._users?SESSION._users:[]).map(u=>({username:u.username,newpass:"",hash:u.password||""}));
-  showUsersModal();
-});
-
-/* ============================================================
-   START
-   ============================================================ */
-init();
-</script>
+<script src="strategy.js"></script>
 </body>
 </html>

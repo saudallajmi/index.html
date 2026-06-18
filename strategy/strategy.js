@@ -599,15 +599,14 @@ function setAdminBtn(state){
 
 document.getElementById("adminToggle").addEventListener("click",()=>{
   if(!SESSION){ showAuth(); return; }
+  if(SESSION.role!=="owner"){ toast("وضع الإدارة متاح للمالك فقط","err"); return; }
   ADMIN_MODE=!ADMIN_MODE;
   setAdminBtn(ADMIN_MODE?"admin":"read");
   document.getElementById("adminBanner").style.display=ADMIN_MODE?"flex":"none";
-  if(SESSION.role==="owner"){
-    document.getElementById("manageUsersBtn").style.display=ADMIN_MODE?"":"none";
-    document.getElementById("kpiLibraryBtn").style.display=ADMIN_MODE?"":"none";
-    document.getElementById("adminSettingsBtn").style.display=ADMIN_MODE?"":"none";
-    document.getElementById("pendingRptsBtn").style.display=ADMIN_MODE?"":"none";
-  }
+  document.getElementById("manageUsersBtn").style.display=ADMIN_MODE?"":"none";
+  document.getElementById("kpiLibraryBtn").style.display=ADMIN_MODE?"":"none";
+  document.getElementById("adminSettingsBtn").style.display=ADMIN_MODE?"":"none";
+  document.getElementById("pendingRptsBtn").style.display=ADMIN_MODE?"":"none";
   renderAll();
 });
 
@@ -615,6 +614,7 @@ document.getElementById("logoutBtn").addEventListener("click",()=>{
   SESSION=null; ADMIN_MODE=false;
   document.getElementById("logoutBtn").style.display="none";
   document.getElementById("adminBanner").style.display="none";
+  ["manageUsersBtn","kpiLibraryBtn","adminSettingsBtn","pendingRptsBtn"].forEach(id=>document.getElementById(id).style.display="none");
   setAdminBtn("login");
   renderAll();
   toast("تم تسجيل الخروج");
@@ -649,16 +649,23 @@ document.getElementById("lgBtn").addEventListener("click",async()=>{
   document.getElementById("authOv").classList.remove("show");
   document.getElementById("lgUser").value=""; document.getElementById("lgPass").value="";
   document.getElementById("lgErr").textContent="";
-  ADMIN_MODE=true;
-  setAdminBtn("admin");
   document.getElementById("logoutBtn").style.display="";
   document.getElementById("adminBanner").style.display="flex";
-  document.getElementById("abWho").innerHTML=`<b>وضع الإدارة مُفعّل</b> — ${esc(res.username)} (${res.role==="owner"?"المالك":"مستخدم"})`;
+  // hide all privileged buttons first, then show selectively
+  ["manageUsersBtn","kpiLibraryBtn","adminSettingsBtn","pendingRptsBtn"].forEach(id=>document.getElementById(id).style.display="none");
   if(res.role==="owner"){
+    ADMIN_MODE=true;
+    setAdminBtn("admin");
+    document.getElementById("abWho").innerHTML=`<b>وضع الإدارة مُفعّل</b> — ${esc(res.username)} (المالك)`;
     document.getElementById("manageUsersBtn").style.display="";
     document.getElementById("kpiLibraryBtn").style.display="";
     document.getElementById("adminSettingsBtn").style.display="";
     document.getElementById("pendingRptsBtn").style.display="";
+  } else {
+    ADMIN_MODE=false;
+    setAdminBtn("read");
+    document.getElementById("abWho").innerHTML=`مرحباً <b>${esc(res.username)}</b> — <span style="color:var(--teal);font-weight:700">مستخدم</span>`;
+    document.getElementById("pendingRptsBtn").style.display=""; // for KPI owners to submit/view reports
   }
   renderAll();
   toast("مرحباً "+esc(res.username)+" ✓");

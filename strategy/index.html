@@ -272,7 +272,10 @@
     <label>كلمة المرور</label>
     <input type="password" id="lgPass" autocomplete="current-password" placeholder="••••••">
     <div class="aperr" id="lgErr"></div>
-    <button class="ebtn primary" style="width:100%;justify-content:center;padding:13px" id="lgBtn" type="button">دخول</button>
+    <div style="display:flex;gap:10px">
+      <button class="ebtn primary" style="flex:1;justify-content:center;padding:13px" id="lgBtn" type="button">دخول</button>
+      <button class="ebtn" style="justify-content:center;padding:13px 18px" onclick="document.getElementById('authOv').classList.remove('show')" type="button">إلغاء</button>
+    </div>
   </div>
 </div>
 

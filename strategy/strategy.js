@@ -2041,13 +2041,17 @@ function delKpiOpt(key,val){
    ============================================================ */
 function showAdminSettings(){
   openModal("إعدادات النظام",`
+    <div class="settings-group-label">الإعدادات العامة</div>
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="ebtn" onclick="showPerspectivesAdmin()" type="button" style="justify-content:flex-start">مناظير BSC — قائمة المناظير</button>
       <button class="ebtn" onclick="showMilestoneTypesAdmin()" type="button" style="justify-content:flex-start">أنواع المعالم — قائمة الأنواع</button>
       <button class="ebtn" onclick="showInitiativeOptionsAdmin()" type="button" style="justify-content:flex-start">خيارات المبادرات (التصنيفات، التنفيذ، الاعتماد…)</button>
       <button class="ebtn" onclick="showKpiOptionsAdmin()" type="button" style="justify-content:flex-start">خيارات مؤشرات الأداء (KPI)</button>
-      <button class="ebtn" onclick="showPendingReports()" type="button" style="justify-content:flex-start">تقارير القياس المعلّقة <span class="badge" style="background:var(--kpi-r);color:#fff;margin-right:6px">${toAr((STATE.kpi_reports||[]).filter(r=>r.status==="pending").length)}</span></button>
       <button class="ebtn" onclick="showThresholdSettings()" type="button" style="justify-content:flex-start">حدود حالة الأداء (مكتمل / حسب المخطط / متأخر)</button>
+    </div>
+    <div class="settings-group-label">سير العمل والموافقات</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button class="ebtn" onclick="showPendingReports()" type="button" style="justify-content:flex-start">تقارير القياس المعلّقة <span class="badge" style="background:var(--kpi-r);color:#fff;margin-right:6px">${toAr((STATE.kpi_reports||[]).filter(r=>r.status==="pending").length)}</span></button>
     </div>`);
 }
 

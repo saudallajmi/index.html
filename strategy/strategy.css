@@ -411,6 +411,11 @@ body{
 .ini-sec-head span::before{content:"";width:3px;height:15px;border-radius:99px;
   background:linear-gradient(180deg,var(--teal),var(--green));display:inline-block;flex-shrink:0}
 
+/* ===== System Settings — Grouped Section Labels ===== */
+.settings-group-label{font-size:12px;font-weight:700;color:var(--teal);letter-spacing:.04em;
+  margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+.settings-group-label:first-child{margin-top:0}
+
 /* ===== Milestones ===== */
 .ms-row{display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border:1px solid var(--line);
   border-radius:12px;background:#fafcfe;margin-bottom:7px}

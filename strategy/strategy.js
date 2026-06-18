@@ -241,6 +241,7 @@ async function init(){
     });
   }
   renderAll();
+  renderDashboard();
   updateMeta();
   updateKPIs();
   updateTabBadges();
@@ -251,6 +252,73 @@ function updateMeta(){
   if(!STATE.updated_at){ el.innerHTML="لم يُحفَظ بعد"; return; }
   const d=new Date(STATE.updated_at);
   el.innerHTML=`آخر تحديث: <b>${d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"})}</b>`;
+}
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function renderDashboard(){
+  const el=document.getElementById("paneDashboard"); if(!el) return;
+  const t=_th();
+  const ini=STATE.initiatives;
+  const iniBrkdn={done:0,ontrack:0,delayed:0,verylate:0,none:0};
+  ini.forEach(i=>{
+    const p=+i.pct||0;
+    if(p>=t.th_complete) iniBrkdn.done++;
+    else if(p>=t.th_ontrack) iniBrkdn.ontrack++;
+    else if(p>=t.th_delayed) iniBrkdn.delayed++;
+    else if(p>0) iniBrkdn.verylate++;
+    else iniBrkdn.none++;
+  });
+  const iniTotal=ini.length||1;
+  const allKpis=[...STATE.goals.flatMap(g=>g.kpis||[]),...STATE.initiatives.flatMap(i=>i.kpis||[]),...STATE.oper_goals.flatMap(og=>og.kpis||[])];
+  const kpiBrkdn={done:0,ontrack:0,delayed:0,verylate:0,nodata:0};
+  allKpis.forEach(k=>{
+    const st=_kpiStatusGov(k);
+    if(st.label==="مكتمل") kpiBrkdn.done++;
+    else if(st.label==="حسب المخطط") kpiBrkdn.ontrack++;
+    else if(st.label==="متأخر") kpiBrkdn.delayed++;
+    else if(st.label==="متأخر جداً") kpiBrkdn.verylate++;
+    else kpiBrkdn.nodata++;
+  });
+  const kpiTotal=allKpis.length||1;
+  const today=new Date();
+  const upcoming=STATE.initiatives.flatMap(i=>(i.milestones||[]).map(m=>({...m,iniName:i.name,iniId:i.id})))
+    .filter(m=>m.end&&new Date(m.end)>=today&&(+m.pct||0)<100)
+    .sort((a,b)=>new Date(a.end)-new Date(b.end)).slice(0,7);
+  const recent=(STATE.change_log||[]).slice(0,8);
+  const _stCard=(label,n,col)=>`<div class="db-stat-card" style="border-right-color:${col}"><div class="db-stat-val" style="color:${col}">${toAr(n)}</div><div class="db-stat-lbl">${label}</div></div>`;
+  const _bar=(items,total)=>`<div class="db-brkdn-bar">${items.map(x=>`<div class="db-brkdn-seg" style="width:${Math.max(0,(x.n/total*100)).toFixed(1)}%;background:${x.col}" title="${x.label}: ${toAr(x.n)}"></div>`).join("")}</div><div class="db-brkdn-leg">${items.map(x=>`<div class="db-leg-item"><span class="db-leg-dot" style="background:${x.col}"></span>${x.label} <b>${toAr(x.n)}</b></div>`).join("")}</div>`;
+  el.innerHTML=`
+  <div class="sec" style="animation-delay:.04s">
+    <div class="sec-h"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>حالة المبادرات</h2></div>
+    <div class="db-stat-row">
+      ${_stCard("مكتملة",iniBrkdn.done,"#2ECC8F")}
+      ${_stCard("حسب المخطط",iniBrkdn.ontrack,"#179C7C")}
+      ${_stCard("متأخرة",iniBrkdn.delayed,"#C9A24B")}
+      ${_stCard("متأخرة جداً",iniBrkdn.verylate,"#e0824b")}
+      ${_stCard("لم تبدأ",iniBrkdn.none,"#8d9bb5")}
+    </div>
+    ${ini.length?`<div style="margin-top:14px">${_bar([{label:"مكتمل",n:iniBrkdn.done,col:"#2ECC8F"},{label:"حسب المخطط",n:iniBrkdn.ontrack,col:"#179C7C"},{label:"متأخر",n:iniBrkdn.delayed,col:"#C9A24B"},{label:"متأخر جداً",n:iniBrkdn.verylate,col:"#e0824b"},{label:"لم يبدأ",n:iniBrkdn.none,col:"#c8d0dd"}],iniTotal)}</div>`:""}
+  </div>
+  <div class="db-2col">
+    <div class="sec" style="animation-delay:.07s;margin-bottom:0">
+      <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>حالة مؤشرات الأداء</h2></div>
+      ${allKpis.length?_bar([{label:"مكتمل",n:kpiBrkdn.done,col:"#2ECC8F"},{label:"حسب المخطط",n:kpiBrkdn.ontrack,col:"#179C7C"},{label:"متأخر",n:kpiBrkdn.delayed,col:"#C9A24B"},{label:"متأخر جداً",n:kpiBrkdn.verylate,col:"#e0824b"},{label:"بدون بيانات",n:kpiBrkdn.nodata,col:"#c8d0dd"}],kpiTotal):`<div style="color:#aab5c4;font-size:12px">لا توجد مؤشرات</div>`}
+    </div>
+    <div class="sec" style="animation-delay:.09s;margin-bottom:0">
+      <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>المعالم القادمة</h2></div>
+      ${upcoming.length?upcoming.map(m=>{
+        const days=Math.ceil((new Date(m.end)-today)/86400000);
+        const col=days<=7?"#e0824b":days<=30?"#C9A24B":"#2ECC8F";
+        return `<div class="db-ms-row"><div class="db-ms-info"><div class="db-ms-name">${esc(m.name)}</div><div class="db-ms-ini">${esc(m.iniName)}</div></div><div class="db-ms-date" style="color:${col}">${toAr(days)} يوم</div></div>`;
+      }).join(""):`<div style="color:#aab5c4;font-size:12px;padding:4px 0">لا توجد معالم قادمة</div>`}
+    </div>
+  </div>
+  <div class="sec" style="animation-delay:.11s">
+    <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>آخر النشاطات</h2></div>
+    ${recent.length?recent.map(c=>`<div class="db-act-row"><div class="db-act-info"><div class="db-act-name">${esc(c.action)} — ${esc(c.entity)}</div><div class="db-act-detail">${esc(c.detail||"")}</div></div><div class="db-act-user">${esc(c.user)}</div></div>`).join(""):`<div style="color:#aab5c4;font-size:12px">لا يوجد نشاط مسجّل بعد</div>`}
+  </div>`;
 }
 
 function renderAll(){
@@ -288,6 +356,7 @@ function updateKPIs(){
   STATE.initiatives.forEach(i=>kpiTotal+=(i.kpis||[]).length);
   STATE.oper_goals.forEach(og=>kpiTotal+=(og.kpis||[]).length);
   document.getElementById("kKpiCount").textContent=toAr(kpiTotal);
+  if(document.getElementById("paneDashboard").style.display!=="none") renderDashboard();
 }
 
 function updateTabBadges(){
@@ -299,6 +368,47 @@ function updateTabBadges(){
 /* ============================================================
    STRATEGY MAP (BSC View)
    ============================================================ */
+let _bscView=0;
+function setBscView(v){
+  _bscView=v;
+  document.getElementById("bscViewPillar").classList.toggle("active",v===0);
+  document.getElementById("bscViewPersp").classList.toggle("active",v===1);
+  renderStratMap();
+}
+
+function _renderBscPersp(el, generals){
+  const PCOLS={"مالي":"#2ECC8F","عملاء":"#179C7C","عمليات":"#C9A24B","تعلم":"#8B5CF6"};
+  const groups={};
+  generals.forEach(g=>{
+    const p=STATE.perspectives.find(x=>x.id===g.perspective_id);
+    const key=p?p.id:"__none";
+    if(!groups[key]) groups[key]={name:p?p.name:"غير مصنّف",goals:[],col:p?(PCOLS[Object.keys(PCOLS).find(k=>p.name.includes(k))||""]||"#5b6b7e"):"#8d9bb5"};
+    groups[key].goals.push(g);
+  });
+  const list=Object.values(groups);
+  if(!list.length){el.innerHTML=`<div class="smap-none">أضف مناظير BSC واربط الأهداف بها</div>`;return;}
+  el.innerHTML=`<div class="bsc-persp-grid">${list.map(grp=>{
+    const avgAll=grp.goals.length?Math.round(grp.goals.reduce((s,g)=>s+kpiAvg(g.kpis),0)/grp.goals.length):0;
+    return `<div class="bsc-persp-card">
+      <div class="bsc-persp-head" style="background:${grp.col}20;border-bottom:3px solid ${grp.col}">
+        <div class="bsc-persp-name" style="color:${grp.col}">${esc(grp.name)}</div>
+        <div class="bsc-persp-avg" style="color:${grp.col}">${toAr(avgAll)}%</div>
+      </div>
+      <div class="bsc-persp-body">${grp.goals.map(g=>{
+        const avg=kpiAvg(g.kpis); const gcol=kpiHex(avg);
+        return `<div class="bsc-pgoal" onclick="event.stopPropagation();switchTab('strategic');setTimeout(()=>toggleGoal('${g.id}'),100)">
+          <div class="bsc-pgoal-bar" style="background:#eef2f7"><div class="bsc-pgoal-fill" style="width:${avg}%;background:${grp.col}"></div></div>
+          <div class="bsc-pgoal-info">
+            <div class="bsc-pgoal-name">${esc(g.name)}</div>
+            <div class="bsc-pgoal-pct" style="color:${gcol}">${toAr(avg)}%</div>
+          </div>
+          <div class="bsc-kpi-dots">${(g.kpis||[]).slice(0,6).map(k=>{const p=Math.min(100,Math.round((+k.actual||0)/(+k.target||1)*100));return `<div class="bsc-kpi-dot" style="background:${kpiHex(p)}" title="${esc(k.name)}: ${toAr(p)}%"></div>`;}).join("")}</div>
+        </div>`;
+      }).join("")}</div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
 function renderStratMap(){
   const el=document.getElementById("stratMapContent");
   if(!el) return;
@@ -307,6 +417,7 @@ function renderStratMap(){
     el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7l6-3 6 3 6-3v13l-6 3-6-3-6 3V7z"/></svg>لا توجد أهداف بعد لعرض الخريطة</div>`;
     return;
   }
+  if(_bscView===1){ _renderBscPersp(el,generals); return; }
   // Group goals by pillar
   const rows=[];
   STATE.pillars.forEach((p,i)=>{
@@ -833,15 +944,18 @@ document.getElementById("lgPass").addEventListener("keydown",e=>{ if(e.key==="En
 /* ============================================================
    TABS
    ============================================================ */
-document.querySelectorAll(".ltab").forEach(btn=>{
-  btn.addEventListener("click",()=>{
-    document.querySelectorAll(".ltab").forEach(b=>b.classList.remove("on"));
-    btn.classList.add("on");
-    const t=btn.dataset.tab;
-    document.getElementById("paneStrategic").style.display=t==="strategic"?"":"none";
-    document.getElementById("paneExecutive").style.display=t==="executive"?"":"none";
-    document.getElementById("paneOperational").style.display=t==="operational"?"":"none";
+function switchTab(tab){
+  document.querySelectorAll(".ltab").forEach(b=>{
+    b.classList.toggle("on",b.dataset.tab===tab);
   });
+  document.getElementById("paneDashboard").style.display=tab==="dashboard"?"":"none";
+  document.getElementById("paneStrategic").style.display=tab==="strategic"?"":"none";
+  document.getElementById("paneExecutive").style.display=tab==="executive"?"":"none";
+  document.getElementById("paneOperational").style.display=tab==="operational"?"":"none";
+  if(tab==="dashboard") renderDashboard();
+}
+document.querySelectorAll(".ltab").forEach(btn=>{
+  btn.addEventListener("click",()=>switchTab(btn.dataset.tab));
 });
 
 /* Strategy Map toggle */

@@ -283,9 +283,10 @@ body{
   box-shadow:0 40px 90px -30px rgba(10,46,84,.5);transform:translateY(20px) scale(.98);
   transition:transform .35s cubic-bezier(.2,.7,.2,1);overflow:hidden}
 .overlay.show .modal{transform:none}
-.modal .mh{padding:22px 24px 18px;background:linear-gradient(135deg,#0D3B6B,#0A2E54);position:relative}
-.modal .mh h3{color:#fff;font-size:18px;font-weight:700}
-.modal .mh .close{position:absolute;top:18px;left:18px;width:32px;height:32px;border-radius:9px;border:none;
+.modal .mh{padding:22px 24px 18px;background:linear-gradient(135deg,#0D3B6B,#0A2E54);position:relative;
+  display:flex;align-items:center;gap:8px}
+.modal .mh h3{color:#fff;font-size:18px;font-weight:700;flex:1}
+.modal .mh .close{position:static;flex:none;width:32px;height:32px;border-radius:9px;border:none;
   background:rgba(255,255,255,.14);color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center}
 .modal .mh .close:hover{background:rgba(255,255,255,.26)}
 .modal .mh .close svg{width:16px;height:16px}
@@ -452,6 +453,27 @@ body{
   border:1px solid var(--line);border-radius:9px;padding:8px 11px;outline:none;
   transition:.2s;width:100%}
 .koi-inp:focus{border-color:var(--teal);box-shadow:0 0 0 3px rgba(46,204,143,.12)}
+
+/* Modal expand */
+.mh .expand-btn{position:static;flex:none;width:32px;height:32px;border-radius:9px;border:none;
+  background:rgba(255,255,255,.12);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  color:#fff;transition:.15s}
+.mh .expand-btn:hover{background:rgba(255,255,255,.26)}
+.mh .expand-btn svg{width:16px;height:16px}
+.modal.modal-xl{max-width:95vw;width:95vw}
+.modal.modal-xl .mb{max-height:85vh}
+/* Initiative inline panel */
+.init-card{cursor:pointer;transition:box-shadow .2s,transform .2s}
+.init-card.selected{box-shadow:0 0 0 2px var(--teal);transform:translateY(-2px)}
+.ini-inline-panel{margin-top:12px;border-top:1px solid var(--line);padding-top:12px}
+/* Gantt */
+.gantt-wrap{display:flex;flex-direction:column;gap:5px;margin:6px 0}
+.gantt-row{display:grid;grid-template-columns:90px 1fr 38px;align-items:center;gap:6px}
+.gantt-label{font-size:11px;color:var(--navy);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;direction:rtl;text-align:right}
+.gantt-track{position:relative;height:12px;background:#eef2f7;border-radius:99px;overflow:hidden}
+.gantt-bar{position:absolute;top:0;height:100%;border-radius:99px;background:#d0dae7;overflow:hidden;min-width:4px}
+.gantt-fill{height:100%;border-radius:99px;transition:width .8s ease}
+.gantt-pct{font-size:11px;font-weight:700;text-align:left;white-space:nowrap}
 
 @keyframes rise{to{opacity:1;transform:none}}
 @media(prefers-reduced-motion:reduce){.kpi,.sec{animation:none!important;opacity:1!important;transform:none!important}}

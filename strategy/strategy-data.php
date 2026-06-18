@@ -44,6 +44,7 @@ function defaultState() {
         "change_log"      => [],
         "users"           => [],
         "updated_at"      => null,
+        "settings"        => ["th_complete"=>100,"th_ontrack"=>85,"th_delayed"=>70],
     ];
 }
 
@@ -88,6 +89,7 @@ function publicData($s) {
         "kpi_reports"        => $s["kpi_reports"],
         "change_log"      => $s["change_log"],
         "updated_at"      => $s["updated_at"],
+        "settings"        => $s["settings"] ?? ["th_complete"=>100,"th_ontrack"=>85,"th_delayed"=>70],
     ];
 }
 
@@ -129,7 +131,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (!$sess) out(["err" => "غير مصرّح"], 403);
         $fields = ["identity","pillars","perspectives","orientations","goals","initiatives",
                    "portfolios","exec_plans","oper_goals","kpi_library","milestone_types",
-                   "kpi_options","initiative_options","kpi_reports","change_log"];
+                   "kpi_options","initiative_options","kpi_reports","change_log","settings"];
         foreach ($fields as $f) {
             if (array_key_exists($f, $body)) $state[$f] = $body[$f];
         }

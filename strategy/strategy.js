@@ -1631,7 +1631,46 @@ function showAdminSettings(){
       <button class="ebtn" onclick="showInitiativeOptionsAdmin()" type="button" style="justify-content:flex-start">خيارات المبادرات (التصنيفات، التنفيذ، الاعتماد…)</button>
       <button class="ebtn" onclick="showKpiOptionsAdmin()" type="button" style="justify-content:flex-start">خيارات مؤشرات الأداء (KPI)</button>
       <button class="ebtn" onclick="showPendingReports()" type="button" style="justify-content:flex-start">تقارير القياس المعلّقة <span class="badge" style="background:var(--kpi-r);color:#fff;margin-right:6px">${toAr((STATE.kpi_reports||[]).filter(r=>r.status==="pending").length)}</span></button>
+      <button class="ebtn" onclick="showThresholdSettings()" type="button" style="justify-content:flex-start">حدود حالة الأداء (مكتمل / حسب المخطط / متأخر)</button>
     </div>`);
+}
+
+function showThresholdSettings(){
+  const t=_th();
+  openModal("إعداد حدود حالة الأداء",`
+    <div class="eform">
+      <div style="font-size:12.5px;color:var(--muted);margin-bottom:14px;line-height:1.7">
+        تحدّد هذه الحدود الألوان وتصنيفات الحالة لجميع مؤشرات الأداء والمبادرات والأهداف.
+      </div>
+      <div class="frow">
+        <div class="fl">
+          <label style="color:#2ECC8F;font-weight:700">حد الاكتمال (مكتمل ≥)</label>
+          <input id="fThComplete" type="number" min="50" max="200" value="${esc(t.th_complete)}" style="border-color:#2ECC8F40">
+        </div>
+        <div class="fl">
+          <label style="color:#179C7C;font-weight:700">حد المخطط (حسب المخطط ≥)</label>
+          <input id="fThOntrack" type="number" min="1" max="100" value="${esc(t.th_ontrack)}" style="border-color:#179C7C40">
+        </div>
+        <div class="fl">
+          <label style="color:#C9A24B;font-weight:700">حد التأخر (متأخر ≥)</label>
+          <input id="fThDelayed" type="number" min="1" max="100" value="${esc(t.th_delayed)}" style="border-color:#C9A24B40">
+        </div>
+      </div>
+      <div style="font-size:11.5px;color:var(--muted);margin-bottom:10px">
+        النتيجة: مكتمل ≥ ${esc(t.th_complete)}% | حسب المخطط ≥ ${esc(t.th_ontrack)}% | متأخر ≥ ${esc(t.th_delayed)}% | متأخر جداً < ${esc(t.th_delayed)}%
+      </div>
+      <div class="faprow">
+        <button class="ebtn primary" onclick="saveThresholdSettings()" type="button">حفظ الحدود</button>
+        <button class="ebtn" onclick="showAdminSettings()" type="button">رجوع</button>
+      </div>
+    </div>`);
+}
+function saveThresholdSettings(){
+  const v=id=>(+document.getElementById(id).value)||0;
+  STATE.settings={ th_complete:v("fThComplete")||100, th_ontrack:v("fThOntrack")||85, th_delayed:v("fThDelayed")||70 };
+  logChange("تعديل","إعدادات الأداء","تحديث حدود حالة الأداء");
+  dirtySave(); renderAll(); updateKPIs();
+  toast("تم حفظ حدود الأداء ✓"); closeModal();
 }
 
 /* ============================================================

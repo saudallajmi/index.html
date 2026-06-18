@@ -4,17 +4,18 @@
 let STATE = {
   identity:        { vision:"", mission:"", values:[] },
   pillars:         [],
-  perspectives:    [],   // مناظير BSC — قابلة للتعديل
+  perspectives:    [],
   orientations:    [],
-  goals:           [],   // + start, end, perspective_id per goal
-  initiatives:     [],   // + num, desc, notes, milestones[], linked_projects[]
+  goals:           [],
+  initiatives:     [],
   portfolios:      [],
   exec_plans:      [],
   oper_goals:      [],
   kpi_library:     [],
-  milestone_types: [],   // admin-managed milestone type options
+  milestone_types: [],
   kpi_options:     { polarities:[], cumulatives:[], frequencies:[], departments:[], data_sources:[] },
-  kpi_reports:     [],   // measurement reports (pending / reviewed)
+  initiative_options: { classifications:[], exec_types:[], follow_up_tags:[], approval_auths:[], media_coverages:[] },
+  kpi_reports:     [],
   change_log:      [],
   updated_at:      null,
 };
@@ -37,7 +38,8 @@ function dirtySave(){
       orientations:STATE.orientations, goals:STATE.goals, initiatives:STATE.initiatives,
       portfolios:STATE.portfolios, exec_plans:STATE.exec_plans, oper_goals:STATE.oper_goals,
       kpi_library:STATE.kpi_library, milestone_types:STATE.milestone_types,
-      kpi_options:STATE.kpi_options, kpi_reports:STATE.kpi_reports, change_log:STATE.change_log
+      kpi_options:STATE.kpi_options, initiative_options:STATE.initiative_options,
+      kpi_reports:STATE.kpi_reports, change_log:STATE.change_log
     };
     const res=await apiPost(body);
     if(!res||res.err) return;
@@ -160,9 +162,13 @@ async function init(){
     if(data.perspectives)    STATE.perspectives    = data.perspectives;
     if(data.milestone_types) STATE.milestone_types = data.milestone_types;
     if(data.kpi_options)     STATE.kpi_options     = Object.assign({polarities:[],cumulatives:[],frequencies:[],departments:[],data_sources:[]},data.kpi_options);
-    if(data.kpi_reports)     STATE.kpi_reports     = data.kpi_reports;
-    if(data.change_log)      STATE.change_log      = data.change_log;
-    if(data.updated_at)      STATE.updated_at      = data.updated_at;
+    if(data.kpi_reports)        STATE.kpi_reports        = data.kpi_reports;
+    if(data.change_log)         STATE.change_log         = data.change_log;
+    if(data.updated_at)         STATE.updated_at         = data.updated_at;
+    if(data.initiative_options) STATE.initiative_options = Object.assign(
+      {classifications:[],exec_types:[],follow_up_tags:[],approval_auths:[],media_coverages:[]},
+      data.initiative_options
+    );
 
     // Migrate: old portfolios had nested .initiatives[] — move them top-level
     STATE.portfolios.forEach(pf=>{
@@ -173,6 +179,15 @@ async function init(){
           if(!pf.initiative_ids.includes(ini.id)) pf.initiative_ids.push(ini.id);
         });
         delete pf.initiatives;
+      }
+    });
+
+    // Migrate: convert old string notes → timestamped array
+    STATE.initiatives.forEach(ini=>{
+      if(typeof ini.notes==="string"){
+        ini.notes=ini.notes.trim()?[{id:uid(),text:ini.notes.trim(),user:"—",ts:new Date().toISOString()}]:[];
+      } else if(!Array.isArray(ini.notes)){
+        ini.notes=[];
       }
     });
   }
@@ -987,17 +1002,19 @@ function delFromLibrary(id){
    INITIATIVE CRUD
    ============================================================ */
 function initiativeForm(ini){
-  const userOpts=(SESSION&&SESSION._users||[]).map(u=>`<option value="${esc(u.username)}"${ini&&ini.kpi_owner===u.username?" selected":""}>${esc(u.username)}</option>`).join("");
-  const ownerRow=ADMIN_MODE?`
-    <div class="fl"><label>رقم المبادرة</label><input id="fIniNum" value="${esc(ini?ini.num||"":"")}"></div>
-    <div class="fl"><label>وصف المبادرة</label><textarea id="fIniDesc" rows="2">${esc(ini?ini.desc||"":"")}</textarea></div>`:"";
-  const isOwner=SESSION&&ini&&SESSION.username===ini.owner;
-  const notesRow=(ADMIN_MODE||isOwner)?`<div class="fl"><label>ملاحظات عامة</label><textarea id="fIniNotes" rows="2">${esc(ini?ini.notes||"":"")}</textarea></div>`:"";
+  const iopts=STATE.initiative_options;
+  const classOpts=iopts.classifications.map(v=>`<option value="${esc(v)}"${ini&&ini.classification===v?" selected":""}>${esc(v)}</option>`).join("");
+  const execOpts=iopts.exec_types.map(v=>`<option value="${esc(v)}"${ini&&ini.exec_type===v?" selected":""}>${esc(v)}</option>`).join("");
   return `<div class="eform">
-    <div class="fl"><label>اسم المبادرة</label><input id="fIniName" value="${esc(ini?ini.name:"")}"></div>
-    <div class="fl"><label>المسؤول / قائد المبادرة</label><input id="fIniOwner" value="${esc(ini?ini.owner||"":"")}"></div>
-    ${ownerRow}
-    ${notesRow}
+    ${ADMIN_MODE?`<div class="frow">
+      <div class="fl"><label>رقم المبادرة</label><input id="fIniNum" value="${esc(ini?ini.num||""||"":"")}"></div>
+      <div class="fl"><label>التصنيف</label>${classOpts?`<select id="fIniClass"><option value="">— غير محدد —</option>${classOpts}</select>`:`<input id="fIniClass" value="${esc(ini?ini.classification||"":"")}" placeholder="التصنيف…">`}</div>
+    </div>`:""}
+    <div class="fl"><label>اسم المبادرة *</label><input id="fIniName" value="${esc(ini?ini.name:"")}"></div>
+    <div class="fl"><label>المسؤول / قائد المبادرة</label><input id="fIniOwner" value="${esc(ini?ini.owner||""||"":"")}"></div>
+    ${ADMIN_MODE?`<div class="fl"><label>وصف المبادرة</label><textarea id="fIniDesc" rows="2">${esc(ini?ini.desc||"":"")}</textarea></div>`:""}
+    ${ADMIN_MODE?`<div class="fl"><label>المخرج التنفيذي</label><textarea id="fIniOutput" rows="2">${esc(ini?ini.exec_output||"":"")}</textarea></div>`:""}
+    ${execOpts?`<div class="fl"><label>نوع التنفيذ</label><select id="fIniExecType"><option value="">— غير محدد —</option>${execOpts}</select></div>`:""}
     <div class="frow">
       <div class="fl"><label>تاريخ البدء</label><input id="fIniStart" type="date" value="${esc(ini?ini.start||"":"")}"></div>
       <div class="fl"><label>تاريخ الانتهاء</label><input id="fIniEnd" type="date" value="${esc(ini?ini.end||"":"")}"></div>
@@ -1015,17 +1032,27 @@ function editInitiative(id){
 }
 function saveInitiative(id){
   const name=document.getElementById("fIniName").value.trim(); if(!name) return;
-  const data={name,owner:(document.getElementById("fIniOwner")||{}).value?.trim()||"",
-    start:(document.getElementById("fIniStart")||{}).value||"",
-    end:(document.getElementById("fIniEnd")||{}).value||"",
-    pct:Math.min(100,Math.max(0,+((document.getElementById("fIniPct")||{}).value)||0))};
+  const g=id=>( (document.getElementById(id)||{}).value ?? "" );
+  const data={
+    name,
+    owner:g("fIniOwner").trim(),
+    start:g("fIniStart"),
+    end:g("fIniEnd"),
+    pct:Math.min(100,Math.max(0,+g("fIniPct")||0)),
+    exec_type:g("fIniExecType"),
+  };
   if(ADMIN_MODE){
-    data.num=(document.getElementById("fIniNum")||{}).value?.trim()||"";
-    data.desc=(document.getElementById("fIniDesc")||{}).value?.trim()||"";
+    data.num=g("fIniNum").trim();
+    data.classification=g("fIniClass").trim();
+    data.desc=g("fIniDesc").trim();
+    data.exec_output=g("fIniOutput").trim();
   }
-  if(document.getElementById("fIniNotes")) data.notes=document.getElementById("fIniNotes").value.trim();
-  if(id){ const ini=STATE.initiatives.find(x=>x.id===id); if(ini) Object.assign(ini,data); }
-  else STATE.initiatives.push({id:uid(),...data,kpis:[],milestones:[],linked_projects:[]});
+  if(id){
+    const ini=STATE.initiatives.find(x=>x.id===id);
+    if(ini) Object.assign(ini,data);
+  } else {
+    STATE.initiatives.push({id:uid(),...data,notes:[],kpis:[],milestones:[],linked_projects:[]});
+  }
   closeModal(); renderInitiatives(); renderPortfolios(); updateKPIs(); updateTabBadges();
   logChange(id?"تعديل":"إضافة","مبادرة",name); dirtySave();
 }
@@ -1048,20 +1075,32 @@ function _renderIniModal(ini){
   const linkedPfs=STATE.portfolios.filter(pf=>(pf.initiative_ids||[]).includes(ini.id));
   const isOwner=SESSION&&SESSION.username===ini.owner;
   const canEdit=ADMIN_MODE||isOwner;
+  const notes=Array.isArray(ini.notes)?ini.notes:[];
 
-  // Milestones section
+  // ── Stats bar ──
   const mss=(ini.milestones||[]);
   const totalMs=mss.length;
   const doneMs=mss.filter(m=>+m.pct>=100).length;
+
+  // ── Milestones HTML ──
   const msHTML=mss.length?mss.map((m,mi)=>{
     const mc=kpiHex(+m.pct||0);
     const types=(m.type_ids||[]).map(tid=>{const t=STATE.milestone_types.find(x=>x.id===tid);return t?`<span class="ms-type-chip">${esc(t.name)}</span>`:""}).join("");
+    const ftags=(m.follow_up_tags||[]).map(tag=>`<span class="ms-type-chip" style="background:rgba(13,59,107,.07);color:var(--navy);border-color:rgba(13,59,107,.18)">${esc(tag)}</span>`).join("");
+    const metaLine=[
+      m.exec_type?`<span style="font-size:11.5px;color:var(--muted)">نوع التنفيذ: ${esc(m.exec_type)}</span>`:"",
+      m.approval_auth?`<span style="font-size:11.5px;color:var(--muted)">الاعتماد: ${esc(m.approval_auth)}</span>`:"",
+      m.media_coverage?`<span style="font-size:11.5px;color:var(--muted)">الإعلام: ${esc(m.media_coverage)}</span>`:"",
+    ].filter(Boolean).join(" · ");
     return `<div class="ms-row" id="msr-${m.id}">
       <div class="ms-num">${toAr(mi+1)}</div>
       <div class="ms-body">
-        <div class="ms-name">${esc(m.name)}${types?`<span style="margin-right:8px">${types}</span>`:""}</div>
+        <div class="ms-name">${esc(m.name)}${types?`<span style="display:inline-flex;gap:4px;margin-right:6px">${types}</span>`:""}</div>
+        ${ftags?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">${ftags}</div>`:""}
         ${m.start||m.end?`<div class="ms-dates">${m.start?fmtDate(m.start):""}${m.end?" ← "+fmtDate(m.end):""}</div>`:""}
         <div class="ms-bar-wrap"><div class="ms-bar"><div class="ms-fill" style="width:${+m.pct||0}%;background:${mc}"></div></div><span class="ms-pct" style="color:${mc}">${toAr(+m.pct||0)}%</span></div>
+        ${metaLine?`<div style="display:flex;flex-wrap:wrap;gap:10px;margin-top:3px">${metaLine}</div>`:""}
+        ${m.output?`<div class="ms-notes" style="margin-top:5px"><b style="font-size:11px;color:var(--teal)">المخرج:</b> ${esc(m.output)}</div>`:""}
         ${m.notes?`<div class="ms-notes">${esc(m.notes)}</div>`:""}
       </div>
       ${canEdit?`<div class="ms-acts">
@@ -1073,7 +1112,7 @@ function _renderIniModal(ini){
     </div>`;
   }).join(""):`<div style="color:#aab5c4;font-size:12.5px;padding:8px 0;font-style:italic">لا توجد معالم بعد</div>`;
 
-  // Linked projects
+  // ── Linked projects HTML ──
   const lps=(ini.linked_projects||[]);
   const lpHTML=lps.length?lps.map(lp=>`<div class="lp-row">
     <span class="lp-name">${esc(lp.name)}</span>
@@ -1081,31 +1120,76 @@ function _renderIniModal(ini){
     ${canEdit?`<button class="ebtn sm danger" onclick="delLinkedProject('${ini.id}','${lp.id}')" type="button">حذف</button>`:""}
   </div>`).join(""):`<div style="color:#aab5c4;font-size:12px;font-style:italic">لا توجد مشاريع مرتبطة</div>`;
 
-  openModal(`${ini.num?`<span style="font-size:13px;color:var(--teal);font-weight:600">${esc(ini.num)}</span> — `:""} ${esc(ini.name)}`,`
-    <div style="text-align:center;margin-bottom:10px">
-      ${svgGauge(pct,160,92)}
-      <div style="margin-top:4px;display:flex;align-items:center;justify-content:center;gap:8px">${statusPill(st)}${totalMs?`<span style="font-size:12px;color:var(--muted)">المعالم: ${toAr(doneMs)}/${toAr(totalMs)}</span>`:""}</div>
-    </div>
-    ${ini.desc?`<div class="ini-desc">${esc(ini.desc)}</div>`:""}
-    ${ini.owner?`<div style="font-size:13px;color:var(--muted);margin-bottom:4px">المسؤول: <b style="color:var(--navy)">${esc(ini.owner)}</b></div>`:""}
-    ${ini.start||ini.end?`<div style="font-size:12.5px;color:var(--muted);margin-bottom:8px">${ini.start?`من ${fmtDate(ini.start)}`:""}${ini.end?` إلى ${fmtDate(ini.end)}`:""}</div>`:""}
-    ${linkedPfs.length?`<div style="margin-bottom:10px;display:flex;flex-wrap:wrap;gap:5px">${linkedPfs.map(pf=>`<span style="font-size:11.5px;background:rgba(13,59,107,.08);color:var(--navy);padding:2px 9px;border-radius:99px">${esc(pf.name)}</span>`).join("")}</div>`:""}
+  // ── Notes HTML ──
+  const notesHTML=notes.length?notes.map(n=>{
+    const d=new Date(n.ts);
+    const dt=d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"})+" · "+d.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
+    const canDel=ADMIN_MODE||(SESSION&&SESSION.username===n.user);
+    return `<div class="ini-note-item">
+      <div class="ini-note-text">${esc(n.text)}</div>
+      <div class="ini-note-meta">${esc(n.user)} · ${dt}
+        ${canDel?`<button class="ebtn sm danger" onclick="delIniNote('${ini.id}','${n.id}')" type="button" style="margin-right:8px;padding:2px 8px">×</button>`:""}
+      </div>
+    </div>`;
+  }).join(""):`<div style="color:#aab5c4;font-size:12.5px;font-style:italic;padding:6px 0">لا توجد ملاحظات بعد</div>`;
 
-    <div class="ini-sec-head">
-      <span>المعالم (${toAr(mss.length)})</span>
-      ${canEdit?`<button class="ebtn sm" onclick="showAddMilestone('${ini.id}')" type="button">+ معلم</button>`:""}
+  const titleHtml=`${ini.num?`<span style="font-size:13px;color:var(--teal);font-weight:600;display:block;margin-bottom:2px">مبادرة رقم ${esc(ini.num)}</span>`:""}${esc(ini.name)}`;
+
+  openModal(titleHtml,`
+    ${ADMIN_MODE?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+      <button class="ebtn sm" onclick="editInitiative('${ini.id}')" type="button">تعديل بيانات المبادرة</button>
+      <button class="ebtn sm" onclick="showAddMilestone('${ini.id}')" type="button">+ معلم جديد</button>
+      <button class="ebtn sm danger" onclick="delInitiative('${ini.id}')" type="button">حذف المبادرة</button>
+    </div>`:""}
+
+    <div class="ini-stats-bar">
+      <div class="isb-item">
+        <span class="isb-lbl">الحالة</span>
+        <div>${svgGauge(pct,64,38)}</div>
+        ${statusPill(st)}
+      </div>
+      <div class="isb-item">
+        <span class="isb-lbl">المعالم المنجزة</span>
+        <span class="isb-val">${totalMs?`${toAr(doneMs)} / ${toAr(totalMs)}`:"- / -"}</span>
+      </div>
+      <div class="isb-item">
+        <span class="isb-lbl">من / إلى</span>
+        <span class="isb-val" style="font-size:13px">${ini.start||ini.end?`${ini.start?fmtDate(ini.start):"—"} ← ${ini.end?fmtDate(ini.end):"—"}`:"-"}</span>
+      </div>
+    </div>
+
+    ${ini.classification||ini.owner?`<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+      ${ini.classification?`<span style="font-size:11.5px;background:rgba(201,162,75,.1);color:var(--gold);border:1px solid rgba(201,162,75,.3);padding:2px 10px;border-radius:99px;font-weight:700">${esc(ini.classification)}</span>`:""}
+      ${ini.owner?`<span style="font-size:11.5px;color:var(--muted)">المسؤول: <b style="color:var(--navy)">${esc(ini.owner)}</b></span>`:""}
+      ${linkedPfs.length?linkedPfs.map(pf=>`<span style="font-size:11px;background:rgba(13,59,107,.07);color:var(--navy);padding:2px 8px;border-radius:99px">${esc(pf.name)}</span>`).join(""):""}
+    </div>`:""}
+
+    ${ini.desc?`<div class="ini-desc">${esc(ini.desc)}</div>`:""}
+
+    ${ini.exec_output||ini.exec_type?`
+    <div class="ini-sec-head"><span>التنفيذ والمتابعة</span></div>
+    ${ini.exec_output?`<div style="background:rgba(23,156,124,.06);border:1px solid rgba(23,156,124,.2);border-radius:10px;padding:10px 12px;font-size:13.5px;color:var(--ink);margin-bottom:6px">
+      <div style="font-size:11.5px;font-weight:700;color:var(--teal);margin-bottom:4px">المخرج التنفيذي</div>${esc(ini.exec_output)}</div>`:""}
+    ${ini.exec_type?`<div style="font-size:13px;color:var(--muted)">نوع التنفيذ: <b style="color:var(--navy)">${esc(ini.exec_type)}</b></div>`:""}
+    `:""}
+
+    <div class="ini-sec-head" style="margin-top:12px">
+      <span>ملاحظات المبادرة</span>
+      ${canEdit?`<button class="ebtn sm" onclick="showAddIniNote('${ini.id}')" type="button">+ إضافة ملاحظة</button>`:""}
+    </div>
+    <div id="iniNotesWrap-${ini.id}">${notesHTML}</div>
+
+    <div class="ini-sec-head" style="margin-top:12px">
+      <span>المعالم وتواريخ الإنجاز (${toAr(mss.length)})</span>
+      ${canEdit&&!ADMIN_MODE?`<button class="ebtn sm" onclick="showAddMilestone('${ini.id}')" type="button">+ معلم</button>`:""}
     </div>
     <div id="msListWrap-${ini.id}">${msHTML}</div>
 
-    <div class="ini-sec-head" style="margin-top:14px">
+    <div class="ini-sec-head" style="margin-top:12px">
       <span>المشاريع المرتبطة</span>
       ${canEdit?`<button class="ebtn sm" onclick="showAddLinkedProject('${ini.id}')" type="button">+ مشروع</button>`:""}
     </div>
-    ${lpHTML}
-
-    ${ini.notes||canEdit?`
-    <div class="ini-sec-head" style="margin-top:14px"><span>ملاحظات عامة</span>${canEdit?`<button class="ebtn sm" onclick="editIniNotes('${ini.id}')" type="button">تعديل</button>`:""}</div>
-    <div style="font-size:13px;color:var(--ink);background:var(--bg);padding:10px;border-radius:10px;white-space:pre-wrap">${ini.notes?esc(ini.notes):`<span style="color:#aab5c4;font-style:italic">لا توجد ملاحظات</span>`}</div>`:""}
+    <div id="lpListWrap-${ini.id}">${lpHTML}</div>
 
     <div class="kpi-sec-head" style="margin-top:14px">
       <span>مؤشرات الأداء (KPIs)</span>
@@ -1382,28 +1466,90 @@ function showAdminSettings(){
     <div style="display:flex;flex-direction:column;gap:10px">
       <button class="ebtn" onclick="showPerspectivesAdmin()" type="button" style="justify-content:flex-start">مناظير BSC — قائمة المناظير</button>
       <button class="ebtn" onclick="showMilestoneTypesAdmin()" type="button" style="justify-content:flex-start">أنواع المعالم — قائمة الأنواع</button>
-      <button class="ebtn" onclick="showKpiOptionsAdmin()" type="button" style="justify-content:flex-start">خيارات مؤشرات الأداء</button>
+      <button class="ebtn" onclick="showInitiativeOptionsAdmin()" type="button" style="justify-content:flex-start">خيارات المبادرات (التصنيفات، التنفيذ، الاعتماد…)</button>
+      <button class="ebtn" onclick="showKpiOptionsAdmin()" type="button" style="justify-content:flex-start">خيارات مؤشرات الأداء (KPI)</button>
       <button class="ebtn" onclick="showPendingReports()" type="button" style="justify-content:flex-start">تقارير القياس المعلّقة <span class="badge" style="background:var(--kpi-r);color:#fff;margin-right:6px">${toAr((STATE.kpi_reports||[]).filter(r=>r.status==="pending").length)}</span></button>
     </div>`);
+}
+
+/* ============================================================
+   INITIATIVE OPTIONS ADMIN
+   ============================================================ */
+function showInitiativeOptionsAdmin(){
+  const cats=[
+    {key:"classifications", label:"التصنيفات",      ex:"إعلامي، تقني، خدمي…"},
+    {key:"exec_types",      label:"أنواع التنفيذ",  ex:"تنفيذ داخلي، خارجي…"},
+    {key:"follow_up_tags",  label:"وسوم المتابعة",  ex:"التنسيق مع أطراف خارجية…"},
+    {key:"approval_auths",  label:"صلاحيات الاعتماد", ex:"مدير الإدارة، القيادة…"},
+    {key:"media_coverages", label:"التغطية الإعلامية", ex:"واس، قناة رسمية…"},
+  ];
+  openModal("خيارات المبادرات والمعالم",`
+    <div class="kpi-opts-wrap">
+      ${cats.map(c=>`
+        <div class="kpi-opt-group">
+          <div class="koi-label">${esc(c.label)}</div>
+          <div id="ioList_${c.key}"></div>
+          <div class="frow" style="margin-top:6px">
+            <input class="koi-inp" id="ioInp_${c.key}" placeholder="${esc(c.ex)}">
+            <button class="ebtn sm" onclick="addIniOpt('${c.key}')" type="button">+</button>
+          </div>
+        </div>`).join("")}
+    </div>`);
+  cats.forEach(c=>renderIoList(c.key));
+}
+function renderIoList(key){
+  const el=document.getElementById("ioList_"+key); if(!el) return;
+  const items=(STATE.initiative_options[key]||[]);
+  el.innerHTML=items.length?items.map(v=>`
+    <div class="lib-item" style="padding:4px 8px">
+      <span class="li-name">${esc(v)}</span>
+      <button class="ebtn sm danger" onclick="delIniOpt('${key}','${esc(v)}')" type="button">×</button>
+    </div>`).join(""):`<div style="color:#aab5c4;font-size:12px">— فارغ</div>`;
+}
+function addIniOpt(key){
+  const inp=document.getElementById("ioInp_"+key); if(!inp) return;
+  const val=inp.value.trim(); if(!val) return;
+  if(!STATE.initiative_options[key]) STATE.initiative_options[key]=[];
+  if(!STATE.initiative_options[key].includes(val)) STATE.initiative_options[key].push(val);
+  inp.value=""; renderIoList(key); dirtySave();
+}
+function delIniOpt(key,val){
+  if(!STATE.initiative_options[key]) return;
+  STATE.initiative_options[key]=STATE.initiative_options[key].filter(v=>v!==val);
+  renderIoList(key); dirtySave();
 }
 
 /* ============================================================
    MILESTONES CRUD
    ============================================================ */
 function _msForm(m){
+  const io=STATE.initiative_options;
   const typeChecks=STATE.milestone_types.map(t=>{
     const sel=m&&(m.type_ids||[]).includes(t.id);
     return `<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer">
       <input type="checkbox" name="msType" value="${t.id}" ${sel?"checked":""} style="accent-color:var(--teal)">${esc(t.name)}</label>`;
   }).join("");
+  const tagChecks=io.follow_up_tags.map(tag=>{
+    const sel=m&&(m.follow_up_tags||[]).includes(tag);
+    return `<label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;background:${sel?"rgba(13,59,107,.08)":"#f7fafc"};border:1px solid var(--line);border-radius:8px;padding:5px 10px">
+      <input type="checkbox" name="msTag" value="${esc(tag)}" ${sel?"checked":""} style="accent-color:var(--teal)">${esc(tag)}</label>`;
+  }).join("");
+  const execOpts=io.exec_types.map(v=>`<option value="${esc(v)}"${m&&m.exec_type===v?" selected":""}>${esc(v)}</option>`).join("");
+  const authOpts=io.approval_auths.map(v=>`<option value="${esc(v)}"${m&&m.approval_auth===v?" selected":""}>${esc(v)}</option>`).join("");
+  const mediaOpts=io.media_coverages.map(v=>`<option value="${esc(v)}"${m&&m.media_coverage===v?" selected":""}>${esc(v)}</option>`).join("");
   return `<div class="eform">
-    <div class="fl"><label>اسم المعلم</label><input id="fMsName" value="${esc(m?m.name:"")}"></div>
+    <div class="fl"><label>اسم المعلم *</label><input id="fMsName" value="${esc(m?m.name:"")}"></div>
     ${typeChecks?`<div class="fl"><label>نوع المعلم</label><div style="display:flex;flex-wrap:wrap;gap:8px">${typeChecks}</div></div>`:""}
     <div class="frow">
       <div class="fl"><label>تاريخ البدء</label><input id="fMsStart" type="date" value="${esc(m?m.start||"":"")}"></div>
       <div class="fl"><label>تاريخ الانتهاء</label><input id="fMsEnd" type="date" value="${esc(m?m.end||"":"")}"></div>
     </div>
     <div class="fl"><label>نسبة الإنجاز (%)</label><input id="fMsPct" type="number" min="0" max="100" value="${m?+m.pct||0:0}"></div>
+    <div class="fl"><label>المخرج</label><textarea id="fMsOutput" rows="2">${esc(m?m.output||"":"")}</textarea></div>
+    ${execOpts?`<div class="fl"><label>نوع التنفيذ</label><select id="fMsExecType"><option value="">— غير محدد —</option>${execOpts}</select></div>`:""}
+    ${tagChecks?`<div class="fl"><label>وسوم المتابعة (يمكن اختيار أكثر من واحد)</label><div style="display:flex;flex-wrap:wrap;gap:6px">${tagChecks}</div></div>`:""}
+    ${authOpts?`<div class="fl"><label>صلاحية الاعتماد</label><select id="fMsAuth"><option value="">— غير محدد —</option>${authOpts}</select></div>`:""}
+    ${mediaOpts?`<div class="fl"><label>متطلبات التغطية الإعلامية</label><select id="fMsMedia"><option value="">— غير محدد —</option>${mediaOpts}</select></div>`:""}
     <div class="fl"><label>ملاحظات</label><textarea id="fMsNotes" rows="2">${esc(m?m.notes||"":"")}</textarea></div>
   </div>`;
 }
@@ -1420,12 +1566,19 @@ function saveMilestone(iniId,msId){
   const name=document.getElementById("fMsName").value.trim(); if(!name) return;
   const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
   if(!ini.milestones) ini.milestones=[];
+  const g=id=>((document.getElementById(id)||{}).value??'');
   const typeIds=Array.from(document.querySelectorAll('input[name="msType"]:checked')).map(c=>c.value);
-  const data={name,type_ids:typeIds,
-    start:(document.getElementById("fMsStart")||{}).value||"",
-    end:(document.getElementById("fMsEnd")||{}).value||"",
-    pct:Math.min(100,Math.max(0,+(document.getElementById("fMsPct")||{}).value||0)),
-    notes:(document.getElementById("fMsNotes")||{}).value?.trim()||""};
+  const followTags=Array.from(document.querySelectorAll('input[name="msTag"]:checked')).map(c=>c.value);
+  const data={
+    name, type_ids:typeIds, follow_up_tags:followTags,
+    start:g("fMsStart"), end:g("fMsEnd"),
+    pct:Math.min(100,Math.max(0,+g("fMsPct")||0)),
+    output:g("fMsOutput").trim(),
+    exec_type:g("fMsExecType"),
+    approval_auth:g("fMsAuth"),
+    media_coverage:g("fMsMedia"),
+    notes:g("fMsNotes").trim()
+  };
   if(msId){ const m=ini.milestones.find(x=>x.id===msId); if(m) Object.assign(m,data); }
   else ini.milestones.push({id:uid(),...data});
   logChange(msId?"تعديل":"إضافة","معلم",name); dirtySave();
@@ -1477,23 +1630,42 @@ function delLinkedProject(iniId,lpId){
 }
 
 /* ============================================================
-   INITIATIVE NOTES EDIT
+   INITIATIVE NOTES (timestamped array)
    ============================================================ */
-function editIniNotes(iniId){
-  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
-  openModal("تعديل الملاحظات",`<div class="eform">
-    <div class="fl"><label>ملاحظات عامة</label><textarea id="fIniNotesEdit" rows="5" style="min-height:120px">${esc(ini.notes||"")}</textarea></div>
+function showAddIniNote(iniId){
+  openModal("إضافة ملاحظة",`<div class="eform">
+    <div class="fl"><label>نص الملاحظة</label><textarea id="fNoteText" rows="4" style="min-height:100px" placeholder="اكتب ملاحظتك هنا…"></textarea></div>
     <div class="faprow">
-      <button class="ebtn primary" onclick="saveIniNotes('${iniId}')" type="button">حفظ</button>
+      <button class="ebtn primary" onclick="saveIniNote('${iniId}')" type="button">حفظ الملاحظة</button>
       <button class="ebtn" onclick="showInitiativeDetail('${iniId}')" type="button">إلغاء</button>
     </div>
   </div>`);
-  setTimeout(()=>document.getElementById("fIniNotesEdit").focus(),50);
+  setTimeout(()=>document.getElementById("fNoteText").focus(),50);
 }
-function saveIniNotes(iniId){
+function saveIniNote(iniId){
+  const text=document.getElementById("fNoteText").value.trim(); if(!text) return;
   const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
-  ini.notes=document.getElementById("fIniNotesEdit").value.trim();
-  logChange("تعديل","ملاحظات مبادرة",ini.name); dirtySave(); _renderIniModal(ini);
+  if(!Array.isArray(ini.notes)) ini.notes=[];
+  ini.notes.push({id:uid(),text,user:SESSION?SESSION.username:"—",ts:new Date().toISOString()});
+  logChange("إضافة","ملاحظة مبادرة",ini.name); dirtySave(); _renderIniModal(ini);
+}
+function delIniNote(iniId,noteId){
+  const ini=STATE.initiatives.find(x=>x.id===iniId); if(!ini) return;
+  ini.notes=(ini.notes||[]).filter(n=>n.id!==noteId);
+  logChange("حذف","ملاحظة مبادرة",ini.name); dirtySave();
+  const wrap=document.getElementById("iniNotesWrap-"+iniId); if(!wrap) return;
+  const notes=Array.isArray(ini.notes)?ini.notes:[];
+  wrap.innerHTML=notes.length?notes.map(n=>{
+    const d=new Date(n.ts);
+    const dt=d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"})+" · "+d.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
+    const canDel=ADMIN_MODE||(SESSION&&SESSION.username===n.user);
+    return `<div class="ini-note-item">
+      <div class="ini-note-text">${esc(n.text)}</div>
+      <div class="ini-note-meta">${esc(n.user)} · ${dt}
+        ${canDel?`<button class="ebtn sm danger" onclick="delIniNote('${ini.id}','${n.id}')" type="button" style="margin-right:8px;padding:2px 8px">×</button>`:""}
+      </div>
+    </div>`;
+  }).join(""):`<div style="color:#aab5c4;font-size:12.5px;font-style:italic;padding:6px 0">لا توجد ملاحظات بعد</div>`;
 }
 
 /* ============================================================

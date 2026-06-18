@@ -38,8 +38,9 @@ function defaultState() {
         "oper_goals"      => [],
         "kpi_library"     => [],
         "milestone_types" => [],
-        "kpi_options"     => ["polarities"=>[],"cumulatives"=>[],"frequencies"=>[],"departments"=>[],"data_sources"=>[]],
-        "kpi_reports"     => [],
+        "kpi_options"        => ["polarities"=>[],"cumulatives"=>[],"frequencies"=>[],"departments"=>[],"data_sources"=>[]],
+        "initiative_options" => ["classifications"=>[],"exec_types"=>[],"follow_up_tags"=>[],"approval_auths"=>[],"media_coverages"=>[]],
+        "kpi_reports"        => [],
         "change_log"      => [],
         "users"           => [],
         "updated_at"      => null,
@@ -82,8 +83,9 @@ function publicData($s) {
         "oper_goals"      => $s["oper_goals"],
         "kpi_library"     => $s["kpi_library"],
         "milestone_types" => $s["milestone_types"],
-        "kpi_options"     => $s["kpi_options"],
-        "kpi_reports"     => $s["kpi_reports"],
+        "kpi_options"        => $s["kpi_options"],
+        "initiative_options" => $s["initiative_options"] ?? ["classifications"=>[],"exec_types"=>[],"follow_up_tags"=>[],"approval_auths"=>[],"media_coverages"=>[]],
+        "kpi_reports"        => $s["kpi_reports"],
         "change_log"      => $s["change_log"],
         "updated_at"      => $s["updated_at"],
     ];
@@ -127,7 +129,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if (!$sess) out(["err" => "غير مصرّح"], 403);
         $fields = ["identity","pillars","perspectives","orientations","goals","initiatives",
                    "portfolios","exec_plans","oper_goals","kpi_library","milestone_types",
-                   "kpi_options","kpi_reports","change_log"];
+                   "kpi_options","initiative_options","kpi_reports","change_log"];
         foreach ($fields as $f) {
             if (array_key_exists($f, $body)) $state[$f] = $body[$f];
         }

@@ -370,6 +370,20 @@ body{
 .clog-detail{font-size:12px;font-weight:400;color:var(--muted)}
 .clog-meta{font-size:11.5px;color:#aab5c4;margin-top:4px}
 
+/* ===== Initiative Detail — Stats Bar ===== */
+.ini-stats-bar{display:flex;align-items:stretch;gap:0;border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:14px}
+.isb-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:4px;padding:12px 10px;text-align:center;border-right:1px solid var(--line)}
+.isb-item:first-child{border-right:none}
+.isb-lbl{font-size:11px;font-weight:700;color:var(--muted)}
+.isb-val{font-size:14px;font-weight:700;color:var(--navy);line-height:1.3}
+
+/* ===== Initiative Notes (timestamped) ===== */
+.ini-note-item{background:#f7fafc;border:1px solid var(--line);border-radius:11px;padding:10px 13px;margin-bottom:7px}
+.ini-note-item:last-child{margin-bottom:0}
+.ini-note-text{font-size:13.5px;color:var(--ink);line-height:1.7;white-space:pre-wrap;margin-bottom:5px}
+.ini-note-meta{font-size:11.5px;color:#aab5c4;display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+
 /* ===== Perspective Badge ===== */
 .persp-badge{display:inline-flex;align-items:center;font-size:11px;font-weight:700;
   padding:2px 9px;border-radius:99px;white-space:nowrap}

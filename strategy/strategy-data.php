@@ -1,16 +1,7 @@
 <?php
 /* =========================================================================
    strategy-data.php — خادم بوابة الخطة الاستراتيجية
-   التخزين: strategy-data.json
-   البنية: { identity, pillars, orientations, goals, portfolios,
-             exec_plans, oper_goals, users, updated_at }
-   العمليات (POST JSON):
-     login       {username,password}
-     save        {username,password,data}   => حفظ كامل (المالك)
-     saveUsers   {username,password,users}  => إدارة المستخدمين (المالك)
-   GET => يرجّع كل البيانات بدون كلمات مرور (قراءة عامة)
    ========================================================================= */
-
 const OWNER_USER      = "admin";
 const OWNER_PASS_HASH = '$2y$12$M9/7FJ.S3VTDKQdWJE47Xu6OIbGrFIHmQfrTPUNy9.iACFz3K8VyW';
 const DATA_FILE       = __DIR__ . "/strategy-data.json";
@@ -40,9 +31,11 @@ function defaultState() {
         "pillars"      => [],
         "orientations" => [],
         "goals"        => [],
+        "initiatives"  => [],   // مستقلة — المحافظ ترتبط بها عبر initiative_ids
         "portfolios"   => [],
         "exec_plans"   => [],
         "oper_goals"   => [],
+        "kpi_library"  => [],   // مكتبة مؤشرات الأداء المركزية
         "users"        => [],
         "updated_at"   => null,
     ];
@@ -77,27 +70,26 @@ function publicData($s) {
         "pillars"      => $s["pillars"],
         "orientations" => $s["orientations"],
         "goals"        => $s["goals"],
+        "initiatives"  => $s["initiatives"],
         "portfolios"   => $s["portfolios"],
         "exec_plans"   => $s["exec_plans"],
         "oper_goals"   => $s["oper_goals"],
+        "kpi_library"  => $s["kpi_library"],
         "updated_at"   => $s["updated_at"],
     ];
 }
 
-// ===== GET =====
 if ($_SERVER["REQUEST_METHOD"] === "GET") {
-    $s = readState();
-    out(publicData($s));
+    out(publicData(readState()));
 }
 
-// ===== POST =====
 if ($_SERVER["REQUEST_METHOD"] === "POST") {
     $body = json_decode(file_get_contents("php://input"), true);
     if (!is_array($body)) out(["err" => "طلب غير صالح"], 400);
 
-    $action   = isset($body["action"])   ? $body["action"]            : "";
-    $username = isset($body["username"]) ? (string)$body["username"]  : "";
-    $password = isset($body["password"]) ? (string)$body["password"]  : "";
+    $action   = isset($body["action"])   ? $body["action"]           : "";
+    $username = isset($body["username"]) ? (string)$body["username"] : "";
+    $password = isset($body["password"]) ? (string)$body["password"] : "";
     $state    = readState();
 
     if ($action === "login") {
@@ -111,9 +103,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
     if ($action === "save") {
         $sess = authenticate($username, $password, $state);
         if (!$sess) out(["err" => "غير مصرّح"], 403);
-        $fields = ["identity","pillars","orientations","goals","portfolios","exec_plans","oper_goals"];
+        $fields = ["identity","pillars","orientations","goals","initiatives",
+                   "portfolios","exec_plans","oper_goals","kpi_library"];
         foreach ($fields as $f) {
-            if (isset($body[$f])) $state[$f] = $body[$f];
+            if (array_key_exists($f, $body)) $state[$f] = $body[$f];
         }
         $res = writeState($state);
         if ($res === false) out(["err" => "تعذّر الحفظ — تحقّق من صلاحيات المجلد"], 500);
@@ -129,7 +122,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
             if (!isset($u["username"]) || trim((string)$u["username"]) === "") continue;
             if ($u["username"] === OWNER_USER) continue;
             $pw = (string)(isset($u["password"]) ? $u["password"] : "");
-            // إن كانت القيمة هاش bcrypt جاهز (مستخدم قائم بدون تغيير) نُبقيها، وإلا نُشفّرها
             $isHash = (bool)preg_match('/^\$2[aby]\$\d{2}\$/', $pw);
             $clean[] = [
                 "username" => trim((string)$u["username"]),

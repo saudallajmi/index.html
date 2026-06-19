@@ -313,9 +313,6 @@ function renderDashboard(){
     .filter(m=>m.end&&new Date(m.end)>=today&&msEff(m)<100)
     .sort((a,b)=>new Date(a.end)-new Date(b.end)).slice(0,6);
 
-  // Recent activity
-  const recent=(STATE.change_log||[]).slice(0,6);
-
   // Strategic goals
   const generals=STATE.goals.filter(g=>g.type==="general");
 
@@ -404,10 +401,10 @@ function renderDashboard(){
     </div>
   </div>
 
-  <!-- Section 3: Milestones + Activity -->
-  <div class="db-2col" style="animation-delay:.10s">
-    <div class="sec" style="margin-bottom:0">
-      <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>المعالم القادمة</h2></div>
+  <!-- Section 3: Milestones (full width) -->
+  <div class="sec" style="animation-delay:.10s">
+    <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>المعالم القادمة</h2></div>
+    <div class="db-2col" style="margin-bottom:0">
       ${upcoming.length?upcoming.map(m=>{
         const days=Math.ceil((new Date(m.end)-today)/86400000);
         const col=days<=7?"#e0824b":days<=30?"#C9A24B":"#2ECC8F";
@@ -423,21 +420,6 @@ function renderDashboard(){
           </div>
         </div>`;
       }).join(""):`<div style="color:#aab5c4;font-size:12px;padding:4px 0">لا توجد معالم قادمة</div>`}
-    </div>
-    <div class="sec" style="margin-bottom:0">
-      <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>آخر النشاطات</h2></div>
-      ${recent.length?recent.map(c=>{
-        const col={"إضافة":"#2ECC8F","تعديل":"#C9A24B","حذف":"#e0824b","موافقة":"#179C7C"}[c.action]||"#8d9bb5";
-        const icon={"إضافة":"+","تعديل":"✎","حذف":"×","موافقة":"✓"}[c.action]||"•";
-        return `<div class="db-act-row">
-          <div class="db-act-icon" style="background:${col}18;color:${col}">${icon}</div>
-          <div class="db-act-info">
-            <div class="db-act-name">${esc(c.action)} — ${esc(c.entity)}</div>
-            <div class="db-act-detail">${esc(c.detail||"")}</div>
-          </div>
-          <div class="db-act-user">${esc(c.user)}</div>
-        </div>`;
-      }).join(""):`<div style="color:#aab5c4;font-size:12px">لا يوجد نشاط مسجّل بعد</div>`}
     </div>
   </div>`;
 }

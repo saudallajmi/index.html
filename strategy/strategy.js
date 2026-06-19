@@ -23,6 +23,7 @@ let STATE = {
 let _iniSel   = null;
 let SESSION   = null;
 let ADMIN_MODE = false;
+let _dashFilter = null;
 const API = "strategy-data.php";
 const PILLAR_COLORS = ["#0D3B6B","#179C7C","#C9A24B","#e0824b","#5b6b7e","#2ECC8F","#8B5CF6"];
 
@@ -68,7 +69,8 @@ function logChange(action, entity, detail){
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
 function todayISO(){ return new Date().toISOString().slice(0,10); }
-function fmtDate(s){ if(!s) return "—"; const d=new Date(s+"T00:00:00"); return d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"}); }
+function fmtDate(s){ if(!s) return "—"; const d=new Date(s+"T00:00:00"); return d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric",calendar:"gregory"}); }
+function fmtDateTime(d){ if(!(d instanceof Date)) d=new Date(d); return d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric",calendar:"gregory"})+" · "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }
 function toAr(n){ return String(n).replace(/\d/g,d=>"٠١٢٣٤٥٦٧٨٩"[d]); }
 
 function toast(msg,type="ok"){
@@ -269,7 +271,7 @@ function updateMeta(){
   const el=document.getElementById("topMeta");
   if(!STATE.updated_at){ el.innerHTML="لم يُحفَظ بعد"; return; }
   const d=new Date(STATE.updated_at);
-  el.innerHTML=`آخر تحديث: <b>${d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"})}</b>`;
+  el.innerHTML=`آخر تحديث: <b>${fmtDate(d.toISOString().slice(0,10))}</b>`;
 }
 
 /* ============================================================
@@ -279,6 +281,8 @@ function renderDashboard(){
   const el=document.getElementById("paneDashboard"); if(!el) return;
   const t=_th();
   const ini=STATE.initiatives;
+
+  // Initiative breakdown
   const iniBrkdn={done:0,ontrack:0,delayed:0,verylate:0,none:0};
   ini.forEach(i=>{
     const p=iniEff(i);
@@ -289,6 +293,8 @@ function renderDashboard(){
     else iniBrkdn.none++;
   });
   const iniTotal=ini.length||1;
+
+  // KPI breakdown
   const allKpis=[...STATE.goals.flatMap(g=>g.kpis||[]),...STATE.initiatives.flatMap(i=>i.kpis||[]),...STATE.oper_goals.flatMap(og=>og.kpis||[])];
   const kpiBrkdn={done:0,ontrack:0,delayed:0,verylate:0,nodata:0};
   allKpis.forEach(k=>{
@@ -299,44 +305,157 @@ function renderDashboard(){
     else if(st.label==="متأخر جداً") kpiBrkdn.verylate++;
     else kpiBrkdn.nodata++;
   });
-  const kpiTotal=allKpis.length||1;
+  const kpiAvgAll=allKpis.length?Math.round(allKpis.reduce((s,k)=>s+Math.min(100,(+k.actual||0)/(+k.target_annual||+k.target||1)*100),0)/allKpis.length):0;
+
+  // Upcoming milestones
   const today=new Date();
   const upcoming=STATE.initiatives.flatMap(i=>(i.milestones||[]).map(m=>({...m,iniName:i.name,iniId:i.id})))
     .filter(m=>m.end&&new Date(m.end)>=today&&msEff(m)<100)
-    .sort((a,b)=>new Date(a.end)-new Date(b.end)).slice(0,7);
-  const recent=(STATE.change_log||[]).slice(0,8);
-  const _stCard=(label,n,col)=>`<div class="db-stat-card" style="border-right-color:${col}"><div class="db-stat-val" style="color:${col}">${toAr(n)}</div><div class="db-stat-lbl">${label}</div></div>`;
+    .sort((a,b)=>new Date(a.end)-new Date(b.end)).slice(0,6);
+
+  // Recent activity
+  const recent=(STATE.change_log||[]).slice(0,6);
+
+  // Strategic goals
+  const generals=STATE.goals.filter(g=>g.type==="general");
+
+  // Helpers
   const _bar=(items,total)=>`<div class="db-brkdn-bar">${items.map(x=>`<div class="db-brkdn-seg" style="width:${Math.max(0,(x.n/total*100)).toFixed(1)}%;background:${x.col}" title="${x.label}: ${toAr(x.n)}"></div>`).join("")}</div><div class="db-brkdn-leg">${items.map(x=>`<div class="db-leg-item"><span class="db-leg-dot" style="background:${x.col}"></span>${x.label} <b>${toAr(x.n)}</b></div>`).join("")}</div>`;
+
+  // SVG donut chart
+  const _donut=(segs,total,size=110)=>{
+    const r=size*0.34,cx=size/2,cy=size/2,sw=size*0.15;
+    const circ=2*Math.PI*r;
+    const tot=segs.reduce((s,x)=>s+x.n,0)||1;
+    let cum=0;
+    const bg=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="#eef2f7" stroke-width="${sw}"/>`;
+    const arcs=segs.filter(x=>x.n>0).map(seg=>{
+      const pct=seg.n/tot;
+      const dash=(pct*circ).toFixed(2);
+      const gap=((1-pct)*circ).toFixed(2);
+      const off=(-(cum*circ-circ*0.25)).toFixed(2);
+      cum+=pct;
+      return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${seg.col}" stroke-width="${sw}" stroke-dasharray="${dash} ${gap}" stroke-dashoffset="${off}"/>`;
+    }).join("");
+    return `<svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}">${bg}${arcs}<text x="${cx}" y="${cy-3}" text-anchor="middle" font-size="${size*0.16}" font-weight="700" fill="#0D3B6B">${toAr(total)}</text><text x="${cx}" y="${cy+size*0.13}" text-anchor="middle" font-size="${size*0.1}" fill="#8d9bb5">مؤشر</text></svg>`;
+  };
+
+  // SVG semicircle arc gauge
+  const _arcGauge=(pct,size=130)=>{
+    const col=kpiHex(pct);
+    const r=size*0.36,cx=size/2,cy=size*0.56,sw=size*0.12;
+    const ang=Math.PI*Math.min(100,pct)/100;
+    const ex=(cx-r*Math.cos(ang)).toFixed(1);
+    const ey=(cy-r*Math.sin(ang)).toFixed(1);
+    const lg=ang>Math.PI?1:0;
+    return `<svg viewBox="0 0 ${size} ${Math.round(size*0.62)}" width="${size}" height="${Math.round(size*0.62)}" style="overflow:visible">
+      <path d="M${(cx-r).toFixed(1)},${cy} A${r},${r},0,0,0,${(cx+r).toFixed(1)},${cy}" fill="none" stroke="#eef2f7" stroke-width="${sw}" stroke-linecap="round"/>
+      ${pct>0?`<path d="M${(cx-r).toFixed(1)},${cy} A${r},${r},0,${lg},0,${ex},${ey}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linecap="round"/>`:""}
+      <text x="${cx}" y="${cy-r*0.28}" text-anchor="middle" font-size="${size*0.2}" font-weight="700" fill="${col}">${toAr(pct)}%</text>
+      <text x="${cx}" y="${cy+size*0.07}" text-anchor="middle" font-size="${size*0.085}" fill="#8d9bb5">متوسط أداء المؤشرات</text>
+    </svg>`;
+  };
+
+  const kpiSegs=[
+    {n:kpiBrkdn.done,col:"#2ECC8F"},{n:kpiBrkdn.ontrack,col:"#179C7C"},
+    {n:kpiBrkdn.delayed,col:"#C9A24B"},{n:kpiBrkdn.verylate,col:"#e0824b"},
+    {n:kpiBrkdn.nodata,col:"#c8d0dd"}
+  ];
+
   el.innerHTML=`
+  <!-- Section 1: Initiative status cards — KEEP -->
   <div class="sec" style="animation-delay:.04s">
     <div class="sec-h"><h2><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>حالة المبادرات</h2></div>
     <div class="db-stat-row">
-      ${_stCard("مكتملة",iniBrkdn.done,"#2ECC8F")}
-      ${_stCard("حسب المخطط",iniBrkdn.ontrack,"#179C7C")}
-      ${_stCard("متأخرة",iniBrkdn.delayed,"#C9A24B")}
-      ${_stCard("متأخرة جداً",iniBrkdn.verylate,"#e0824b")}
-      ${_stCard("لم تبدأ",iniBrkdn.none,"#8d9bb5")}
+      <div class="db-stat-card db-stat-link" style="border-right-color:#2ECC8F" onclick="goFilter('initiative','done')" title="انتقال لعرض المبادرات المكتملة"><div class="db-stat-val" style="color:#2ECC8F">${toAr(iniBrkdn.done)}</div><div class="db-stat-lbl">مكتملة</div></div>
+      <div class="db-stat-card db-stat-link" style="border-right-color:#179C7C" onclick="goFilter('initiative','ontrack')" title="انتقال لعرض مبادرات حسب المخطط"><div class="db-stat-val" style="color:#179C7C">${toAr(iniBrkdn.ontrack)}</div><div class="db-stat-lbl">حسب المخطط</div></div>
+      <div class="db-stat-card db-stat-link" style="border-right-color:#C9A24B" onclick="goFilter('initiative','delayed')" title="انتقال لعرض المبادرات المتأخرة"><div class="db-stat-val" style="color:#C9A24B">${toAr(iniBrkdn.delayed)}</div><div class="db-stat-lbl">متأخرة</div></div>
+      <div class="db-stat-card db-stat-link" style="border-right-color:#e0824b" onclick="goFilter('initiative','verylate')" title="انتقال لعرض المبادرات المتأخرة جداً"><div class="db-stat-val" style="color:#e0824b">${toAr(iniBrkdn.verylate)}</div><div class="db-stat-lbl">متأخرة جداً</div></div>
+      <div class="db-stat-card db-stat-link" style="border-right-color:#8d9bb5" onclick="goFilter('initiative','none')" title="انتقال لعرض المبادرات التي لم تبدأ"><div class="db-stat-val" style="color:#8d9bb5">${toAr(iniBrkdn.none)}</div><div class="db-stat-lbl">لم تبدأ</div></div>
     </div>
     ${ini.length?`<div style="margin-top:14px">${_bar([{label:"مكتمل",n:iniBrkdn.done,col:"#2ECC8F"},{label:"حسب المخطط",n:iniBrkdn.ontrack,col:"#179C7C"},{label:"متأخر",n:iniBrkdn.delayed,col:"#C9A24B"},{label:"متأخر جداً",n:iniBrkdn.verylate,col:"#e0824b"},{label:"لم يبدأ",n:iniBrkdn.none,col:"#c8d0dd"}],iniTotal)}</div>`:""}
   </div>
-  <div class="db-2col">
-    <div class="sec" style="animation-delay:.07s;margin-bottom:0">
-      <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>حالة مؤشرات الأداء</h2></div>
-      ${allKpis.length?_bar([{label:"مكتمل",n:kpiBrkdn.done,col:"#2ECC8F"},{label:"حسب المخطط",n:kpiBrkdn.ontrack,col:"#179C7C"},{label:"متأخر",n:kpiBrkdn.delayed,col:"#C9A24B"},{label:"متأخر جداً",n:kpiBrkdn.verylate,col:"#e0824b"},{label:"بدون بيانات",n:kpiBrkdn.nodata,col:"#c8d0dd"}],kpiTotal):`<div style="color:#aab5c4;font-size:12px">لا توجد مؤشرات</div>`}
+
+  <!-- Section 2: KPI donut + Arc gauge + Strategic goals -->
+  <div class="db-3col" style="animation-delay:.07s">
+    <div class="sec" style="margin-bottom:0">
+      <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>توزيع مؤشرات الأداء</h2></div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div>${_donut(kpiSegs,allKpis.length,110)}</div>
+        <div style="flex:1;min-width:100px">
+          ${[{n:kpiBrkdn.done,col:"#2ECC8F",label:"مكتمل"},{n:kpiBrkdn.ontrack,col:"#179C7C",label:"حسب المخطط"},{n:kpiBrkdn.delayed,col:"#C9A24B",label:"متأخر"},{n:kpiBrkdn.verylate,col:"#e0824b",label:"متأخر جداً"},{n:kpiBrkdn.nodata,col:"#c8d0dd",label:"بدون بيانات"}].map(x=>`<div class="db-leg-item" style="margin-bottom:6px"><span class="db-leg-dot" style="background:${x.col}"></span><span style="flex:1">${x.label}</span><b style="color:var(--navy)">${toAr(x.n)}</b></div>`).join("")}
+        </div>
+      </div>
     </div>
-    <div class="sec" style="animation-delay:.09s;margin-bottom:0">
+    <div class="sec" style="margin-bottom:0;text-align:center">
+      <div class="sec-h" style="text-align:right"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l2.5 2.5"/></svg>مستوى الأداء الكلي</h2></div>
+      <div style="display:flex;justify-content:center;padding:10px 0 4px">${_arcGauge(kpiAvgAll,130)}</div>
+      <div style="font-size:11.5px;color:var(--muted);text-align:center">${toAr(allKpis.length)} مؤشر أداء نشط</div>
+    </div>
+    <div class="sec" style="margin-bottom:0">
+      <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>الأهداف الاستراتيجية</h2></div>
+      ${generals.length?generals.slice(0,6).map(g=>{
+        const avg=kpiAvg(g.kpis); const gc=kpiHex(avg);
+        return `<div class="db-goal-row" onclick="goFilter('goal','${g.id}')">
+          <div class="db-goal-info"><span class="db-goal-name">${esc(g.name)}</span><span class="db-goal-pct" style="color:${gc}">${toAr(avg)}%</span></div>
+          <div class="db-goal-bar"><div class="db-goal-fill" style="width:${avg}%;background:${gc}"></div></div>
+        </div>`;
+      }).join(""):`<div style="color:#aab5c4;font-size:12px;padding:8px 0">لا توجد أهداف استراتيجية</div>`}
+    </div>
+  </div>
+
+  <!-- Section 3: Milestones + Activity -->
+  <div class="db-2col" style="animation-delay:.10s">
+    <div class="sec" style="margin-bottom:0">
       <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>المعالم القادمة</h2></div>
       ${upcoming.length?upcoming.map(m=>{
         const days=Math.ceil((new Date(m.end)-today)/86400000);
         const col=days<=7?"#e0824b":days<=30?"#C9A24B":"#2ECC8F";
-        return `<div class="db-ms-row"><div class="db-ms-info"><div class="db-ms-name">${esc(m.name)}</div><div class="db-ms-ini">${esc(m.iniName)}</div></div><div class="db-ms-date" style="color:${col}">${toAr(days)} يوم</div></div>`;
+        return `<div class="db-ms-row">
+          <div class="db-ms-urg" style="border-color:${col};color:${col}">
+            <div class="db-ms-days">${toAr(days)}</div>
+            <div style="font-size:9px">يوم</div>
+          </div>
+          <div class="db-ms-info">
+            <div class="db-ms-name">${esc(m.name)}</div>
+            <div class="db-ms-ini">${esc(m.iniName)}</div>
+            <div class="db-ms-prog-bar"><div style="width:${msEff(m)}%;background:${col}"></div></div>
+          </div>
+        </div>`;
       }).join(""):`<div style="color:#aab5c4;font-size:12px;padding:4px 0">لا توجد معالم قادمة</div>`}
     </div>
-  </div>
-  <div class="sec" style="animation-delay:.11s">
-    <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>آخر النشاطات</h2></div>
-    ${recent.length?recent.map(c=>`<div class="db-act-row"><div class="db-act-info"><div class="db-act-name">${esc(c.action)} — ${esc(c.entity)}</div><div class="db-act-detail">${esc(c.detail||"")}</div></div><div class="db-act-user">${esc(c.user)}</div></div>`).join(""):`<div style="color:#aab5c4;font-size:12px">لا يوجد نشاط مسجّل بعد</div>`}
+    <div class="sec" style="margin-bottom:0">
+      <div class="sec-h"><h2 style="font-size:14px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 20h9M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>آخر النشاطات</h2></div>
+      ${recent.length?recent.map(c=>{
+        const col={"إضافة":"#2ECC8F","تعديل":"#C9A24B","حذف":"#e0824b","موافقة":"#179C7C"}[c.action]||"#8d9bb5";
+        const icon={"إضافة":"+","تعديل":"✎","حذف":"×","موافقة":"✓"}[c.action]||"•";
+        return `<div class="db-act-row">
+          <div class="db-act-icon" style="background:${col}18;color:${col}">${icon}</div>
+          <div class="db-act-info">
+            <div class="db-act-name">${esc(c.action)} — ${esc(c.entity)}</div>
+            <div class="db-act-detail">${esc(c.detail||"")}</div>
+          </div>
+          <div class="db-act-user">${esc(c.user)}</div>
+        </div>`;
+      }).join(""):`<div style="color:#aab5c4;font-size:12px">لا يوجد نشاط مسجّل بعد</div>`}
+    </div>
   </div>`;
+}
+
+function goFilter(type, value){
+  _dashFilter = {type, value};
+  if(type==="goal"){
+    _dashFilter = null;
+    switchTab("strategic");
+  } else {
+    switchTab("executive");
+    renderInitiatives();
+  }
+}
+
+function clearFilter(){
+  _dashFilter = null;
+  renderInitiatives();
 }
 
 function renderAll(){
@@ -680,11 +799,28 @@ function toggleSubGoal(id){ const el=document.getElementById("sg-"+id); if(el) e
 function renderInitiatives(){
   document.getElementById("addInitiativeBtn").style.display=ADMIN_MODE?"":"none";
   const el=document.getElementById("initiativesList");
-  if(!STATE.initiatives.length){
-    el.innerHTML=`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>لا توجد مبادرات بعد — أضف مبادرات واربطها بمحافظ</div>`;
+  const t2=_th();
+  let inis=STATE.initiatives;
+  let filterBanner="";
+  if(_dashFilter&&_dashFilter.type==="initiative"){
+    const labels={done:"مكتملة",ontrack:"حسب المخطط",delayed:"متأخرة",verylate:"متأخرة جداً",none:"لم تبدأ"};
+    const lbl=labels[_dashFilter.value]||"";
+    inis=inis.filter(i=>{
+      const p=iniEff(i);
+      if(_dashFilter.value==="done") return p>=t2.th_complete;
+      if(_dashFilter.value==="ontrack") return p>=t2.th_ontrack&&p<t2.th_complete;
+      if(_dashFilter.value==="delayed") return p>=t2.th_delayed&&p<t2.th_ontrack;
+      if(_dashFilter.value==="verylate") return p>0&&p<t2.th_delayed;
+      if(_dashFilter.value==="none") return p===0;
+      return true;
+    });
+    filterBanner=`<div class="db-filter-bar"><span>مرشح: <b>${lbl}</b> — ${toAr(inis.length)} مبادرة</span><button class="ebtn sm" onclick="clearFilter()" type="button">× إلغاء الفلتر</button></div>`;
+  }
+  if(!inis.length){
+    el.innerHTML=filterBanner+`<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>لا توجد مبادرات${_dashFilter?" تطابق هذا الفلتر":" بعد"}</div>`;
     return;
   }
-  el.innerHTML=`<div class="init-grid">${STATE.initiatives.map(ini=>{
+  el.innerHTML=filterBanner+`<div class="init-grid">${inis.map(ini=>{
     const pct=iniEff(ini);
     const st=calcStatus(pct,ini.end);
     const col=kpiHex(pct);
@@ -1213,6 +1349,7 @@ document.getElementById("lgPass").addEventListener("keydown",e=>{ if(e.key==="En
    TABS
    ============================================================ */
 function switchTab(tab){
+  if(tab!=="executive" && _dashFilter) _dashFilter=null;
   document.querySelectorAll(".ltab").forEach(b=>{
     b.classList.toggle("on",b.dataset.tab===tab);
   });
@@ -1699,8 +1836,7 @@ function _renderIniModal(ini){
 
   // ── Notes HTML ──
   const notesHTML=notes.length?notes.map(n=>{
-    const d=new Date(n.ts);
-    const dt=d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"})+" · "+d.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
+    const dt=fmtDateTime(new Date(n.ts));
     const canDel=ADMIN_MODE||(SESSION&&SESSION.username===n.user);
     return `<div class="ini-note-item">
       <div class="ini-note-text">${esc(n.text)}</div>
@@ -2314,8 +2450,7 @@ function delIniNote(iniId,noteId){
   const wrap=document.getElementById("iniNotesWrap-"+iniId); if(!wrap) return;
   const notes=Array.isArray(ini.notes)?ini.notes:[];
   wrap.innerHTML=notes.length?notes.map(n=>{
-    const d=new Date(n.ts);
-    const dt=d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"})+" · "+d.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
+    const dt=fmtDateTime(new Date(n.ts));
     const canDel=ADMIN_MODE||(SESSION&&SESSION.username===n.user);
     return `<div class="ini-note-item">
       <div class="ini-note-text">${esc(n.text)}</div>
@@ -2422,8 +2557,7 @@ function showPendingReports(){
   const all=(STATE.kpi_reports||[]);
   const rows=all.length?all.map(r=>{
     const kpi=_findKpi(r.scope,r.parent_id,r.kpi_id);
-    const d=new Date(r.submitted_at);
-    const ds=d.toLocaleDateString("ar-SA",{year:"numeric",month:"short",day:"numeric"})+" "+d.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
+    const ds=fmtDateTime(new Date(r.submitted_at));
     const statusMap={pending:"معلّق",approved:"موافق",returned:"مُرجَع",rejected:"مرفوض"};
     const statusCol={pending:"var(--gold)",approved:"var(--kpi-g)",returned:"var(--teal)",rejected:"var(--kpi-r)"};
     const sc=statusCol[r.status]||"var(--muted)";
@@ -2474,8 +2608,8 @@ function showChangeLog(){
   };
   const rows=log.length?log.map(e=>{
     const d=new Date(e.ts);
-    const dateStr=d.toLocaleDateString("ar-SA",{year:"numeric",month:"long",day:"numeric"});
-    const timeStr=d.toLocaleTimeString("ar-SA",{hour:"2-digit",minute:"2-digit"});
+    const dateStr=fmtDate(d.toISOString().slice(0,10));
+    const timeStr=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0");
     const col=actionColor[e.action]||"var(--muted)";
     return `<div class="clog-entry">
       <span class="clog-badge" style="background:${col}20;color:${col};border:1px solid ${col}40">${esc(e.action)}</span>
